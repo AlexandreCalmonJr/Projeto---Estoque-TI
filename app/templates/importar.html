@@ -24,24 +24,17 @@
         </form>
     </div>
     <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-bold mb-4">Instruções e Formato</h3>
-        <p class="mb-2">O arquivo deve conter as seguintes colunas:</p>
+        <h3 class="text-xl font-bold mb-4">Instruções e Formato do Arquivo</h3>
+        <p class="mb-2">O arquivo deve conter um cabeçalho com os nomes das colunas. As colunas essenciais são:</p>
         <ul class="list-disc list-inside bg-gray-50 p-4 rounded">
-            <li><strong>id_ativo</strong> (Opcional)</li>
-            <li><strong>numero_serie</strong> (Obrigatório)</li>
-            <li><strong>categoria</strong> (Obrigatório)</li>
-            <li><strong>modelo</strong> (Obrigatório)</li>
-            <li><strong>marca</strong> (Obrigatório)</li>
-            <li><strong>data_aquisicao</strong> (Obrigatório, formato AAAA-MM-DD)</li>
-            <li>nota_fiscal</li>
-            <li>fornecedor</li>
-            <li>cpu</li>
-            <li>ram_gb</li>
-            <li>armazenamento_gb</li>
-            <li>sistema_operacional</li>
+            <li><strong>ATIVO</strong> ou <strong>categoria</strong> (Obrigatório)</li>
+            <li><strong>FABRICANTE</strong> ou <strong>marca</strong> (Obrigatório)</li>
+            <li><strong>MODELO</strong> (Obrigatório, pode ser genérico)</li>
+            <li><strong>Nº SERIE</strong> ou <strong>numero_serie</strong> (Opcional)</li>
+            <li><strong>QUANTIDADE</strong> (Opcional, padrão '1')</li>
         </ul>
         <p class="mt-4 text-sm text-gray-600">
-            <strong>Atenção:</strong> Se a categoria ou o modelo não existirem, eles serão criados automaticamente. O ID do ativo (patrimônio) será gerado pelo sistema.
+            <strong>Atenção:</strong> Se o "Nº SERIE" não for fornecido, o sistema gerará um serial provisório. Se a `QUANTIDADE` for maior que 1, o sistema criará a quantidade correspondente de itens com seriais únicos.
         </p>
     </div>
 </div>

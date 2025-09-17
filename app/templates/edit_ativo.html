@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
+    <form method="POST">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="text-lg font-semibold mb-4 border-b pb-2">Informações do Ativo</h3>
+                <div class="mb-4">
+                    <label for="id_ativo" class="block text-gray-700 text-sm font-bold mb-2">Patrimônio</label>
+                    <input type="text" name="id_ativo" id="id_ativo" value="{{ ativo.id_ativo }}" class="shadow appearance-none border rounded w-full py-2 px-3" required>
+                </div>
+                <div class="mb-4">
+                    <label for="categoria" class="block text-gray-700 text-sm font-bold mb-2">Categoria</label>
+                    <select name="categoria" id="categoria" class="shadow border rounded w-full py-2 px-3" required>
+                        {% for c in categorias %}
+                        <option value="{{ c.id }}" {% if c.id == ativo.categoria_id %}selected{% endif %}>{{ c.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="modelo" class="block text-gray-700 text-sm font-bold mb-2">Modelo</label>
+                    <select name="modelo" id="modelo" class="shadow border rounded w-full py-2 px-3" required>
+                         {% for m in modelos %}
+                        <option value="{{ m.id }}" data-categoria="{{ m.categoria_id }}" {% if m.id == ativo.modelo_id %}selected{% endif %}>{{ m.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="marca" class="block text-gray-700 text-sm font-bold mb-2">Marca</label>
+                    <input type="text" name="marca" id="marca" value="{{ ativo.marca }}" class="shadow appearance-none border rounded w-full py-2 px-3" required>
+                </div>
+                <div class="mb-4">
+                    <label for="numero_serie" class="block text-gray-700 text-sm font-bold mb-2">Número de Série</label>
+                    <input type="text" name="numero_serie" id="numero_serie" value="{{ ativo.numero_serie }}" class="shadow appearance-none border rounded w-full py-2 px-3" required>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-semibold mb-4 border-b pb-2">Detalhes da Aquisição</h3>
+                <div class="mb-4">
+                    <label for="nota_fiscal" class="block text-gray-700 text-sm font-bold mb-2">Nota Fiscal</label>
+                    <input type="text" name="nota_fiscal" id="nota_fiscal" value="{{ ativo.nota_fiscal or '' }}" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div class="mb-4">
+                    <label for="fornecedor" class="block text-gray-700 text-sm font-bold mb-2">Fornecedor</label>
+                    <input type="text" name="fornecedor" id="fornecedor" value="{{ ativo.fornecedor or '' }}" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                 <div class="mb-4">
+                    <label for="destino" class="block text-gray-700 text-sm font-bold mb-2">Destino</label>
+                    <select name="destino" id="destino" class="shadow border rounded w-full py-2 px-3" required>
+                        <option value="Estoque TI" {% if ativo.destino == 'Estoque TI' %}selected{% endif %}>Estoque TI</option>
+                        <option value="Projeto" {% if ativo.destino == 'Projeto' %}selected{% endif %}>Projeto</option>
+                        <option value="Backup Emergencial" {% if ativo.destino == 'Backup Emergencial' %}selected{% endif %}>Backup Emergencial</option>
+                    </select>
+                </div>
+                 <div class="mb-4">
+                    <label for="data_aquisicao" class="block text-gray-700 text-sm font-bold mb-2">Data de Aquisição</label>
+                    <input type="date" name="data_aquisicao" id="data_aquisicao" value="{{ ativo.data_aquisicao or '' }}" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end mt-8">
+            <a href="{{ url_for('main.detalhes_ativo', id_ativo=ativo.id_ativo) }}" class="text-gray-600 hover:underline mr-6">Cancelar</a>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Salvar Alterações
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

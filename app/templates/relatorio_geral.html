@@ -10,6 +10,15 @@
             .no-print { display: none; }
         }
         body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+
+        /* --- NOVO ESTILO PARA LINHAS CLICÁVEIS --- */
+        .clickable-row {
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .clickable-row:hover {
+            background-color: #f3f4f6; /* Um cinza claro no hover */
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-8">
@@ -25,38 +34,47 @@
             </div>
         </div>
         
-        <div class="mb-6 text-center">
-            <p class="text-lg">Total de Ativos Registrados: <span class="font-bold text-2xl text-blue-600">{{ total }}</span></p>
+        <div class="no-print">
+            {% include '_filtros.html' %}
         </div>
-
-        <table class="w-full text-left text-sm">
-            <thead class="bg-gray-100">
-                <tr>
-                    <th class="p-3 font-bold text-gray-600">Patrimônio</th>
-                    <th class="p-3 font-bold text-gray-600">Categoria</th>
-                    <th class="p-3 font-bold text-gray-600">Modelo</th>
-                    <th class="p-3 font-bold text-gray-600">Status</th>
-                    <th class="p-3 font-bold text-gray-600">Responsável / Local</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ativo in ativos %}
-                <tr class="border-b">
-                    <td class="p-3 font-medium">{{ ativo.id_ativo }}</td>
-                    <td class="p-3">{{ ativo.categoria }}</td>
-                    <td class="p-3">{{ ativo.modelo }}</td>
-                    <td class="p-3">{{ ativo.status }}</td>
-                    <td class="p-3">{{ ativo.usuario_responsavel or ativo.localizacao }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" class="p-3 text-center text-gray-500">Nenhum ativo encontrado.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
         
-        <div class="mt-8 no-print text-center">
+        <div id="print-area">
+            <div class="mb-6 text-center">
+                <p class="text-lg">Total de Ativos (Filtrado): <span class="font-bold text-2xl text-blue-600">{{ total }}</span></p>
+            </div>
+
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-3 font-bold text-gray-600">Patrimônio</th>
+                        <th class="p-3 font-bold text-gray-600">Categoria</th>
+                        <th class="p-3 font-bold text-gray-600">Modelo</th>
+                        <th class="p-3 font-bold text-gray-600">Status</th>
+                        <th class="p-3 font-bold text-gray-600">Responsável / Local</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ativo in ativos %}
+                    <tr class="border-b clickable-row" onclick="window.location.href='{{ url_for('main.detalhes_ativo', id_ativo=ativo.id_ativo) }}';">
+                        <td class="p-3 font-medium">{{ ativo.id_ativo }}</td>
+                        <td class="p-3">{{ ativo.categoria }}</td>
+                        <td class="p-3">{{ ativo.modelo }}</td>
+                        <td class="p-3">{{ ativo.status }}</td>
+                        <td class="p-3">{{ ativo.usuario_responsavel or ativo.localizacao }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="p-3 text-center text-gray-500">Nenhum ativo encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-8 no-print text-center flex justify-center gap-4">
+            <button onclick="history.back()" class="bg-gray-600 text-white font-bold py-2 px-6 rounded hover:bg-gray-700 transition-colors">
+                Voltar
+            </button>
             <button onclick="window.print()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded hover:bg-blue-700 transition-colors">
                 Imprimir Relatório
             </button>
@@ -64,4 +82,3 @@
     </div>
 </body>
 </html>
-

@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+    <h3 class="text-xl font-bold text-gray-800 mb-4">Editar Ativos com Serial Provisório</h3>
+    <p class="text-gray-600 mb-6">
+        Abaixo estão os ativos cadastrados em lote. Atualize o Patrimônio e o Nº de Série de cada um e salve as alterações.
+    </p>
+
+    {% if ativos %}
+    <form method="POST">
+        <table class="w-full text-left">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="p-4 font-bold text-gray-600">Categoria / Modelo</th>
+                    <th class="p-4 font-bold text-gray-600">Serial Provisório</th>
+                    <th class="p-4 font-bold text-gray-600">Novo Patrimônio</th>
+                    <th class="p-4 font-bold text-gray-600">Novo Nº de Série</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ativo in ativos %}
+                <tr class="border-b hover:bg-gray-50">
+                    <input type="hidden" name="db_id_{{ loop.index }}" value="{{ ativo.id }}">
+                    
+                    <td class="p-4 text-gray-700">
+                        {{ ativo.categoria }}<br>
+                        <span class="text-sm text-gray-500">{{ ativo.modelo }}</span>
+                    </td>
+                    <td class="p-4 text-gray-700 font-mono text-sm">{{ ativo.numero_serie }}</td>
+                    <td class="p-2">
+                        <input type="text" name="id_ativo_{{ loop.index }}" value="{{ ativo.id_ativo }}" 
+                               class="w-full p-2 border rounded" required>
+                    </td>
+                    <td class="p-2">
+                        <input type="text" name="numero_serie_{{ loop.index }}" 
+                               class="w-full p-2 border rounded" required>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mt-6 text-right">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">
+                Salvar Todas as Alterações
+            </button>
+        </div>
+    </form>
+    {% else %}
+    <p class="p-4 text-center text-gray-500">Nenhum ativo com serial provisório encontrado para edição.</p>
+    {% endif %}
+</div>
+{% endblock %}

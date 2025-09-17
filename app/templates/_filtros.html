@@ -1,0 +1,70 @@
+<form method="GET" class="bg-white p-4 rounded-lg shadow-md mb-6 flex flex-wrap items-center gap-4">
+    <div class="flex-grow" style="min-width: 200px;">
+        <label for="q" class="block text-sm font-medium text-gray-700">Busca Rápida</label>
+        <input type="text" name="q" id="q" value="{{ filtros_selecionados.q or '' }}"
+               placeholder="Patrimônio, serial, usuário..."
+               class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+    </div>
+
+    <div class="flex-grow">
+        <label for="categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
+        <select name="categoria" id="categoria" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+            <option value="">Todas</option>
+            {% for cat in todas_categorias %}
+                <option value="{{ cat.id }}" {% if cat.id == filtros_selecionados.categoria_id|int %}selected{% endif %}>
+                    {{ cat.nome }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="flex-grow">
+        <label for="modelo" class="block text-sm font-medium text-gray-700">Modelo</label>
+        <select name="modelo" id="modelo" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+            <option value="">Todos</option>
+            {% for mod in todos_modelos %}
+                <option value="{{ mod.id }}" data-categoria="{{ mod.categoria_id }}" {% if mod.id == filtros_selecionados.modelo_id|int %}selected{% endif %}>
+                    {{ mod.nome }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="pt-5 flex items-center">
+        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Filtrar</button>
+        <a href="{{ request.path }}" class="ml-4 text-sm text-gray-600 hover:underline">Limpar</a>
+    </div>
+</form>
+
+<script>
+// O script de filtro dependente continua o mesmo, não precisa ser alterado.
+document.addEventListener('DOMContentLoaded', function() {
+    const categoriaSelect = document.getElementById('categoria');
+    const modeloSelect = document.getElementById('modelo');
+    const todosModelos = Array.from(modeloSelect.options);
+
+    function filtrarModelos() {
+        const selectedCategoriaId = categoriaSelect.value;
+        const currentModeloId = modeloSelect.value;
+        
+        modeloSelect.innerHTML = '';
+        modeloSelect.appendChild(todosModelos[0]);
+
+        const modelosFiltrados = !selectedCategoriaId 
+            ? todosModelos.slice(1) 
+            : todosModelos.filter(option => option.dataset.categoria === selectedCategoriaId);
+        
+        modelosFiltrados.forEach(option => modeloSelect.appendChild(option.cloneNode(true)));
+        modeloSelect.value = currentModeloId;
+    }
+
+    if (categoriaSelect && modeloSelect) {
+        filtrarModelos();
+        categoriaSelect.addEventListener('change', () => {
+            // Ao mudar a categoria, reseta a seleção de modelo
+            modeloSelect.value = '';
+            filtrarModelos();
+        });
+    }
+});
+</script>

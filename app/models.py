@@ -70,49 +70,103 @@ class AssetManager:
         engine = get_asset_db_engine()
         with engine.connect() as conn:
             
-            # Lógica para patrimônio opcional
-            id_ativo = form_data.get('id_ativo')
-            if id_ativo and id_ativo.strip():
-                id_ativo = id_ativo.strip()
-                result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': id_ativo})
-                if result.first():
-                    raise ValueError(f"O patrimônio '{id_ativo}' já existe. Tente outro.")
-            else:
-                tipo = form_data['tipo_ativo_sigla']
-                ano = datetime.now().year
-                result = conn.execute(text("SELECT COUNT(*) FROM ativos WHERE id_ativo LIKE :like_pattern"), {'like_pattern': f"{tipo}-{ano}-%"})
-                sequencial = result.scalar_one() + 1
-                id_ativo = f"{tipo}-{ano}-{sequencial:03d}"
+            # Lógica de Quantidade
+            try:
+                quantidade = int(form_data.get('quantidade', 1))
+                if quantidade < 1: quantidade = 1
+            except (ValueError, TypeError):
+                quantidade = 1
+
+            # Loop para criar múltiplos ativos
+            for i in range(quantidade):
+                # Lógica para patrimônio opcional
+                id_ativo = form_data.get('id_ativo')
+                if id_ativo and id_ativo.strip():
+                    id_ativo = id_ativo.strip()
+                    if quantidade > 1: # Se for mais de um item, anexa um sufixo para evitar duplicatas
+                        id_ativo = f"{id_ativo}-{i+1}"
+                    
+                    result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': id_ativo})
+                    if result.first():
+                        raise ValueError(f"O patrimônio '{id_ativo}' já existe.")
+                else:
+                    tipo = form_data['tipo_ativo_sigla']
+                    ano = datetime.now().year
+                    result = conn.execute(text("SELECT COUNT(*) FROM ativos WHERE id_ativo LIKE :like_pattern"), {'like_pattern': f"{tipo}-{ano}-%"})
+                    sequencial = result.scalar_one() + 1
+                    id_ativo = f"{tipo}-{ano}-{sequencial + i}" # Adiciona o índice do loop para garantir unicidade
+                
+                # Lógica para número de série
+                numero_serie = form_data.get('numero_serie', '').strip()
+                if not numero_serie:
+                    timestamp = int(time.time() * 1000)
+                    numero_serie = f"PROV-{timestamp + i}" # Cria serial provisório
+                elif quantidade > 1:
+                    numero_serie = f"{numero_serie}-{i+1}" # Anexa sufixo se for mais de um item
+
+                # Lógica de INSERT (o SQL e os params foram atualizados)
+                sql = """
+                    INSERT INTO ativos (id_ativo, numero_serie, marca, modelo_id, categoria_id, status, nota_fiscal, 
+                                    fornecedor, data_aquisicao, localizacao, usuario_responsavel, destino,
+                                    cpu, ram_gb, armazenamento_gb, sistema_operacional)
+                    VALUES (:id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id, 'Em Estoque', :nota_fiscal, 
+                            :fornecedor, :data_aquisicao, :destino, NULL, :destino,
+                            :cpu, :ram_gb, :armazenamento_gb, :sistema_operacional)
+                """
+                params = {
+                    'id_ativo': id_ativo, 
+                    'numero_serie': numero_serie,
+                    'marca': form_data['marca'], 
+                    'modelo_id': form_data['modelo'], 
+                    'categoria_id': form_data['categoria'], 
+                    'nota_fiscal': form_data.get('nota_fiscal'),
+                    'fornecedor': form_data.get('fornecedor'), 
+                    'data_aquisicao': form_data.get('data_aquisicao') or None,
+                    'destino': form_data.get('destino'),
+                    'cpu': form_data.get('cpu'), 
+                    'ram_gb': form_data.get('ram_gb') or None,
+                    'armazenamento_gb': form_data.get('armazenamento_gb') or None, 
+                    'sistema_operacional': form_data.get('sistema_operacional')
+                }
+                conn.execute(text(sql), params)
+                self._log_event(id_ativo, "Criação", "Ativo cadastrado em lote e movido para o estoque.", conn)
             
-            # CORREÇÃO APLICADA AQUI: A instrução SQL foi corrigida para ter o número correto de colunas e valores.
-            sql = """
-                INSERT INTO ativos (
-                    id_ativo, numero_serie, marca, modelo_id, categoria_id, status, 
-                    nota_fiscal, fornecedor, data_aquisicao, localizacao, usuario_responsavel, 
-                    destino, cpu, ram_gb, armazenamento_gb, sistema_operacional
-                ) VALUES (
-                    :id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id, 'Em Estoque', 
-                    :nota_fiscal, :fornecedor, :data_aquisicao, :destino, NULL, 
-                    :destino, :cpu, :ram_gb, :armazenamento_gb, :sistema_operacional
-                )
-            """
-            params = {
-                'id_ativo': id_ativo, 
-                'numero_serie': form_data['numero_serie'], 
-                'marca': form_data['marca'], 
-                'modelo_id': form_data['modelo'], 
-                'categoria_id': form_data['categoria'], 
-                'nota_fiscal': form_data.get('nota_fiscal'),
-                'fornecedor': form_data.get('fornecedor'), 
-                'data_aquisicao': form_data.get('data_aquisicao') or None,
-                'destino': form_data.get('destino'),
-                'cpu': form_data.get('cpu'), 
-                'ram_gb': form_data.get('ram_gb') or None,
-                'armazenamento_gb': form_data.get('armazenamento_gb') or None, 
-                'sistema_operacional': form_data.get('sistema_operacional')
-            }
-            conn.execute(text(sql), params)
-            self._log_event(id_ativo, "Criação", "Ativo cadastrado e movido para o estoque.", conn)
+            conn.commit()
+
+
+    # ADICIONE ESTA NOVA FUNÇÃO DENTRO DA CLASSE AssetManager
+    def atualizar_lote_ativos(self, form_data):
+        engine = get_asset_db_engine()
+        updates = {}
+        # Organiza os dados do formulário em um dicionário por ID de banco de dados
+        for key, value in form_data.items():
+            if key.startswith('db_id_'):
+                idx = key.split('_')[-1]
+                db_id = int(value)
+                if db_id not in updates:
+                    updates[db_id] = {}
+                updates[db_id]['id_ativo'] = form_data.get(f'id_ativo_{idx}')
+                updates[db_id]['numero_serie'] = form_data.get(f'numero_serie_{idx}')
+
+        with engine.connect() as conn:
+            for db_id, data in updates.items():
+                novo_id_ativo = data['id_ativo']
+                novo_numero_serie = data['numero_serie']
+                
+                # Validações de unicidade
+                result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id AND id != :db_id"), {'id': novo_id_ativo, 'db_id': db_id})
+                if result.first():
+                    raise ValueError(f"Patrimônio '{novo_id_ativo}' já existe.")
+                
+                result = conn.execute(text("SELECT id FROM ativos WHERE numero_serie = :sn AND id != :db_id"), {'sn': novo_numero_serie, 'db_id': db_id})
+                if result.first():
+                    raise ValueError(f"Número de Série '{novo_numero_serie}' já existe.")
+
+                # Atualiza o ativo
+                sql = "UPDATE ativos SET id_ativo = :id_ativo, numero_serie = :numero_serie WHERE id = :db_id"
+                conn.execute(text(sql), {'id_ativo': novo_id_ativo, 'numero_serie': novo_numero_serie, 'db_id': db_id})
+                self._log_event(novo_id_ativo, "Atualização em Lote", f"Patrimônio e/ou Serial atualizados para valores definitivos.", conn)
+
             conn.commit()
 
     def movimentar(self, id_ativo, novo_status, chamado, detalhes=None):
@@ -136,6 +190,54 @@ class AssetManager:
 
     def baixar(self, id_ativo, chamado):
         self.movimentar(id_ativo, 'Descartado', chamado)
+        
+    def atualizar_ativo(self, id_ativo_original, form_data):
+        engine = get_asset_db_engine()
+        with engine.connect() as conn:
+            # Pega o novo ID do patrimônio do formulário
+            novo_id_ativo = form_data.get('id_ativo').strip()
+
+            # Se o patrimônio foi alterado, verifica se o novo já não está em uso
+            if id_ativo_original != novo_id_ativo:
+                result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': novo_id_ativo})
+                if result.first():
+                    raise ValueError(f"O novo patrimônio '{novo_id_ativo}' já pertence a outro ativo.")
+            
+            # Constrói a query de atualização
+            sql = """
+                UPDATE ativos SET
+                    id_ativo = :id_ativo,
+                    numero_serie = :numero_serie,
+                    marca = :marca,
+                    modelo_id = :modelo_id,
+                    categoria_id = :categoria_id,
+                    nota_fiscal = :nota_fiscal,
+                    fornecedor = :fornecedor,
+                    data_aquisicao = :data_aquisicao,
+                    destino = :destino
+                WHERE id_ativo = :id_ativo_original
+            """
+            params = {
+                'id_ativo': novo_id_ativo,
+                'numero_serie': form_data['numero_serie'],
+                'marca': form_data['marca'],
+                'modelo_id': form_data['modelo'],
+                'categoria_id': form_data['categoria'],
+                'nota_fiscal': form_data.get('nota_fiscal'),
+                'fornecedor': form_data.get('fornecedor'),
+                'data_aquisicao': form_data.get('data_aquisicao') or None,
+                'destino': form_data.get('destino'),
+                'id_ativo_original': id_ativo_original
+            }
+            conn.execute(text(sql), params)
+            
+            # Registra o evento no histórico se o patrimônio foi alterado
+            if id_ativo_original != novo_id_ativo:
+                detalhes = f"Patrimônio alterado de '{id_ativo_original}' para '{novo_id_ativo}'."
+                self._log_event(novo_id_ativo, "Atualização", detalhes, conn)
+
+            conn.commit()
+            return novo_id_ativo # Retorna o novo ID para o redirecionamento    
 
 def get_engine_by_key(key):
     """
