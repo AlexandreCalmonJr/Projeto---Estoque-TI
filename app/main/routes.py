@@ -45,33 +45,26 @@ def logout():
 @main_bp.route('/')
 @login_required
 def index():
-    # COMENTÁRIO: Obtém o termo de busca da URL (ex: /?q=notebook).
-    # O 'q' é o nome do campo de input no formulário de busca.
     search_query = request.args.get('q', '').strip()
     
-    # COMENTÁRIO: Query base para buscar todos os ativos, juntando com modelos e categorias.
     query = """
         SELECT a.id_ativo, a.numero_serie, a.marca, m.nome as modelo, c.nome as categoria, a.status, a.localizacao, a.usuario_responsavel
         FROM ativos a
         JOIN modelos m ON a.modelo_id = m.id
         JOIN categorias c ON a.categoria_id = c.id
     """
-    params = []
+    # CORREÇÃO: Inicializa 'params' como um dicionário vazio.
+    params = {} 
     
-    # COMENTÁRIO: Se um termo de busca foi fornecido, adiciona a cláusula WHERE.
-    # O '?' é um placeholder para os parâmetros, evitando SQL Injection.
-    # O '%' é um curinga que busca por qualquer texto antes ou depois do termo.
     if search_query:
-        query += " WHERE a.id_ativo LIKE ? OR a.numero_serie LIKE ? OR a.usuario_responsavel LIKE ?"
-        search_term = f"%{search_query}%"
-        params.extend([search_term, search_term, search_term])
-    
+        query += " WHERE a.id_ativo LIKE :search_term OR a.numero_serie LIKE :search_term OR a.usuario_responsavel LIKE :search_term"
+        # Adiciona o parâmetro ao dicionário.
+        params['search_term'] = f"%{search_query}%"
+
     query += " ORDER BY a.data_aquisicao DESC"
     
     ativos = db_query(query, params)
     
-    # COMENTÁRIO: Passa o termo da busca de volta para o template para que ele
-    # possa ser exibido no campo de input, mostrando ao usuário o que ele buscou.
     return render_template("index.html", title="Dashboard de Ativos", ativos=ativos, search_query=search_query)
 
 # COMENTÁRIO: Rota para o formulário de cadastro. O título foi alterado para ser mais claro.
@@ -97,7 +90,7 @@ def form_ativo():
 @main_bp.route('/ativo/<id_ativo>')
 @login_required
 def detalhes_ativo(id_ativo):
-    # Correção: Usa :id_ativo como placeholder e passa um dicionário como parâmetro
+    # CORREÇÃO: Usa dicionário para os parâmetros
     query_ativo = "SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = :id_ativo"
     ativo_list = db_query(query_ativo, {'id_ativo': id_ativo})
 
@@ -107,11 +100,12 @@ def detalhes_ativo(id_ativo):
     
     ativo = ativo_list[0]
     
-    # Correção: Aplica o mesmo padrão para a consulta do histórico
+    # CORREÇÃO: Usa dicionário para os parâmetros
     query_historico = "SELECT * FROM historico WHERE id_ativo = :id_ativo ORDER BY timestamp DESC"
     historico = db_query(query_historico, {'id_ativo': id_ativo})
     
     return render_template("detalhes_ativo.html", title=f"Detalhes: {ativo['id_ativo']}", ativo=ativo, historico=historico)
+
 
 # --- NOVAS ROTAS ---
 
@@ -201,7 +195,11 @@ def distribuir_ativo(id_ativo):
 def movimentar_ativo(id_ativo):
     novo_status = request.form['novo_status']
     chamado = request.form['numero_chamado']
+    
+    # CORREÇÃO: A lógica foi movida para dentro da função da classe AssetManager
+    manager = AssetManager()
     manager.movimentar(id_ativo, novo_status, chamado)
+    
     flash(f'Status do ativo alterado para "{novo_status}" com sucesso!', 'success')
     return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
 
