@@ -4,7 +4,8 @@
     <!-- Gerenciar Categorias -->
     <div class="bg-white p-6 rounded-lg shadow-md">
         <h3 class="text-xl font-bold mb-4">Categorias</h3>
-        <form method="POST" action="{{ url_for('gerenciar_tipos') }}" class="mb-4">
+        <form method="POST" action="{{ url_for('main.gerenciar_tipos') }}" class="mb-4">
+
             <input type="hidden" name="form_type" value="categoria">
             <input type="text" name="nome" placeholder="Nova Categoria" class="w-full border p-2 rounded mb-2" required>
             <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Adicionar Categoria</button>
@@ -19,7 +20,8 @@
     <!-- Gerenciar Modelos -->
     <div class="bg-white p-6 rounded-lg shadow-md">
         <h3 class="text-xl font-bold mb-4">Modelos</h3>
-        <form method="POST" action="{{ url_for('gerenciar_tipos') }}" class="mb-4">
+        <form method="POST" action="{{ url_for('main.gerenciar_tipos') }}" class="mb-4">
+
             <input type="hidden" name="form_type" value="modelo">
             <select name="categoria_id" class="w-full border p-2 rounded mb-2" required>
                 <option value="">Selecione a Categoria</option>

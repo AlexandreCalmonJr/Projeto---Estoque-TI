@@ -1,26 +1,38 @@
 {% extends 'admin/base_admin.html' %}
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto">
-    <form method="POST">
+    <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) if user else url_for('admin.create_user') }}">
         <div class="mb-4">
-            <label class="block mb-1">Nome de Usuário</label>
-            <input type="text" name="username" value="{{ user.username }}" class="w-full border p-2 rounded" required>
+            <label for="username" class="block text-gray-700 font-bold mb-2">Nome de Usuário</label>
+            <input type="text" name="username" id="username" value="{{ user.username if user else '' }}" class="w-full border p-2 rounded" required>
         </div>
         <div class="mb-4">
-            <label class="block mb-1">Nova Senha (deixe em branco para não alterar)</label>
-            <input type="password" name="password" class="w-full border p-2 rounded">
+            <label for="password" class="block text-gray-700 font-bold mb-2">
+                Senha 
+                {% if user %}
+                    <span class="text-sm font-normal text-gray-500">(deixe em branco para não alterar)</span>
+                {% endif %}
+            </label>
+            <input type="password" name="password" id="password" class="w-full border p-2 rounded" {% if not user %}required{% endif %}>
         </div>
         <div class="mb-4">
             <label class="flex items-center">
-                <input type="checkbox" name="is_admin" class="mr-2" {% if user.is_admin %}checked{% endif %}>
-                É Administrador?
+                <input type="checkbox" name="is_admin" class="mr-2" {% if user and user.is_admin %}checked{% endif %}>
+                É Administrador? (Gerente, Coordenador, Admin)
             </label>
         </div>
-        <div class="flex justify-between items-center">
-            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Salvar Alterações</button>
+        <div class="flex justify-between items-center mt-6">
+            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Salvar</button>
+            <a href="{{ url_for('admin.list_users') }}" class="text-gray-600 hover:underline">Cancelar</a>
+        </div>
     </form>
-    <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja deletar este usuário?');">
-        <button type="submit" class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Deletar Usuário</button>
-    </form>
+
+    {% if user %}
+    <div class="border-t mt-6 pt-4">
+        <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja deletar este usuário? Esta ação não pode ser desfeita.');">
+            <button type="submit" class="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Deletar Usuário</button>
+        </form>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

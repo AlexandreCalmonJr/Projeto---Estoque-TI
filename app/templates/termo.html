@@ -1,6 +1,36 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
+<style>
+    .signature-pad-container {
+        border: 2px dashed #ccc;
+        border-radius: 0.5rem;
+        background-color: #f8f9fa;
+    }
+    canvas {
+        width: 100%;
+        height: 200px;
+    }
+    /* Estilos para quando a página for impressa */
+    @media print {
+        body * {
+            visibility: hidden; /* Esconde tudo */
+        }
+        #printable-area, #printable-area * {
+            visibility: visible; /* Mostra apenas a área do termo */
+        }
+        #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        .no-print {
+            display: none; /* Garante que os botões não apareçam */
+        }
+    }
+</style>
+
+<div id="printable-area" class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
     <h3 class="text-2xl font-bold text-center mb-4">TERMO DE RESPONSABILIDADE DE ATIVOS DE TI</h3>
     <p class="text-center text-gray-500 mb-6">Data de Emissão: {{ data_emissao }}</p>
     
@@ -19,12 +49,95 @@
     {% endfor %}
     
     <div class="mt-16 text-center">
-        <div class="inline-block">
-            <div class="w-80 h-px bg-black"></div>
-            <p class="mt-2">{{ usuario }}</p>
-            <p class="text-sm">(Assinatura do Responsável)</p>
+        <div id="signature-section">
+            <div class="mb-2"><strong>Assinatura do Responsável:</strong></div>
+            <div id="signature-pad-wrapper" class="signature-pad-container">
+                <canvas></canvas>
+            </div>
+            <div id="signature-image-wrapper" class="hidden mt-4">
+                </div>
+        </div>
+
+        <div id="manual-signature-section" class="hidden mt-8">
+             <div class="inline-block">
+                <div class="w-80 h-px bg-black"></div>
+                <p class="mt-2">{{ usuario }}</p>
+            </div>
         </div>
     </div>
-    
 </div>
+
+<div class="max-w-4xl mx-auto mt-6 flex flex-wrap justify-center gap-4 no-print">
+    <button id="print-btn" class="bg-gray-600 text-white font-bold py-2 px-6 rounded hover:bg-gray-700">
+        1. Imprimir para Assinar Manualmente
+    </button>
+    <button id="clear-btn" class="bg-yellow-500 text-white font-bold py-2 px-6 rounded hover:bg-yellow-600">
+        2. Limpar Assinatura Digital
+    </button>
+    <button id="save-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700">
+        3. Finalizar e Gerar PDF/Imprimir
+    </button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+
+<script>
+    const canvas = document.querySelector("canvas");
+    const signaturePad = new SignaturePad(canvas, {
+        backgroundColor: 'rgb(248, 249, 250)'
+    });
+
+    const printBtn = document.getElementById('print-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const saveBtn = document.getElementById('save-btn');
+
+    // Botão 1: Imprimir para assinatura manual
+    printBtn.addEventListener('click', () => {
+        // Esconde a área de assinatura digital e mostra a linha de assinatura manual
+        document.getElementById('signature-section').style.display = 'none';
+        document.getElementById('manual-signature-section').style.display = 'block';
+        window.print();
+        // Restaura a visualização após a impressão
+        document.getElementById('signature-section').style.display = 'block';
+        document.getElementById('manual-signature-section').style.display = 'none';
+    });
+    
+    // Botão 2: Limpar o canvas
+    clearBtn.addEventListener('click', () => {
+        signaturePad.clear();
+        // Garante que a imagem da assinatura antiga seja removida se houver
+        document.getElementById('signature-pad-wrapper').classList.remove('hidden');
+        document.getElementById('signature-image-wrapper').classList.add('hidden');
+        document.getElementById('signature-image-wrapper').innerHTML = '';
+    });
+
+    // Botão 3: Salvar a assinatura como imagem e preparar para impressão/PDF
+    saveBtn.addEventListener('click', () => {
+        if (signaturePad.isEmpty()) {
+            alert("Por favor, forneça uma assinatura antes de salvar.");
+        } else {
+            // Pega a assinatura como uma imagem no formato Base64
+            const dataURL = signaturePad.toDataURL("image/png");
+            
+            // Cria um elemento de imagem e o exibe
+            const img = document.createElement('img');
+            img.src = dataURL;
+            img.style.width = '320px'; // Define um tamanho para a imagem
+            img.style.margin = '0 auto'; // Centraliza a imagem
+
+            const signatureImageWrapper = document.getElementById('signature-image-wrapper');
+            signatureImageWrapper.innerHTML = ''; // Limpa antes de adicionar
+            signatureImageWrapper.appendChild(img);
+
+            // Esconde o canvas e mostra a imagem final
+            document.getElementById('signature-pad-wrapper').classList.add('hidden');
+            signatureImageWrapper.classList.remove('hidden');
+
+            // Abre a janela de impressão
+            // O usuário pode escolher "Imprimir" ou "Salvar como PDF"
+            window.print();
+        }
+    });
+
+</script>
 {% endblock %}

@@ -79,6 +79,7 @@ def setup_database_logic():
                     localizacao TEXT,
                     usuario_responsavel TEXT,
                     data_aquisicao DATE,
+                    destino TEXT, -- ADICIONE ESTA LINHA
                     cpu TEXT,
                     ram_gb INTEGER,
                     armazenamento_gb INTEGER,

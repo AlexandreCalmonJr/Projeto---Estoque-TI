@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-bold mb-4">Importar Ativos de Arquivo</h3>
+        <p class="text-gray-600 mb-4">
+            Selecione um arquivo CSV ou Excel (.xlsx) para importar múltiplos ativos de uma vez.
+        </p>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label for="file" class="block text-gray-700 text-sm font-bold mb-2">Arquivo:</label>
+                <input type="file" name="file" id="file" required
+                       class="block w-full text-sm text-gray-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-full file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100"
+                       accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors">
+                Importar Arquivo
+            </button>
+        </form>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-bold mb-4">Instruções e Formato</h3>
+        <p class="mb-2">O arquivo deve conter as seguintes colunas:</p>
+        <ul class="list-disc list-inside bg-gray-50 p-4 rounded">
+            <li><strong>id_ativo</strong> (Opcional)</li>
+            <li><strong>numero_serie</strong> (Obrigatório)</li>
+            <li><strong>categoria</strong> (Obrigatório)</li>
+            <li><strong>modelo</strong> (Obrigatório)</li>
+            <li><strong>marca</strong> (Obrigatório)</li>
+            <li><strong>data_aquisicao</strong> (Obrigatório, formato AAAA-MM-DD)</li>
+            <li>nota_fiscal</li>
+            <li>fornecedor</li>
+            <li>cpu</li>
+            <li>ram_gb</li>
+            <li>armazenamento_gb</li>
+            <li>sistema_operacional</li>
+        </ul>
+        <p class="mt-4 text-sm text-gray-600">
+            <strong>Atenção:</strong> Se a categoria ou o modelo não existirem, eles serão criados automaticamente. O ID do ativo (patrimônio) será gerado pelo sistema.
+        </p>
+    </div>
+</div>
+{% endblock %}

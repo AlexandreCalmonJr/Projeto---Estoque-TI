@@ -1,15 +1,16 @@
+import os
+import pandas as pd
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from app.models import db_query, db_execute, AssetManager, User
 from datetime import datetime
 from flask_login import login_user, logout_user, current_user, login_required
-
+from . import main_bp
 # COMENTÁRIO: Renomeamos o Blueprint para 'main' para seguir uma convenção comum.
 # As rotas serão chamadas com url_for('main.nome_da_funcao').
-bp = Blueprint('main', __name__)
 manager = AssetManager()
 
 # --- Rotas de Autenticação (sem grandes alterações) ---
-@bp.route('/login', methods=['GET', 'POST'])
+@main_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -30,7 +31,7 @@ def login():
         return redirect(url_for('main.index'))
     return render_template('login.html', databases=current_app.config['ASSET_DATABASES'])
 
-@bp.route('/logout')
+@main_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
@@ -41,7 +42,7 @@ def logout():
 # --- Rotas da Aplicação ---
 
 # COMENTÁRIO: Rota principal, agora com funcionalidade de pesquisa.
-@bp.route('/')
+@main_bp.route('/')
 @login_required
 def index():
     # COMENTÁRIO: Obtém o termo de busca da URL (ex: /?q=notebook).
@@ -74,7 +75,7 @@ def index():
     return render_template("index.html", title="Dashboard de Ativos", ativos=ativos, search_query=search_query)
 
 # COMENTÁRIO: Rota para o formulário de cadastro. O título foi alterado para ser mais claro.
-@bp.route('/ativo/novo', methods=['GET', 'POST'])
+@main_bp.route('/ativo/novo', methods=['GET', 'POST'])
 @login_required
 def form_ativo():
     if request.method == 'POST':
@@ -93,22 +94,30 @@ def form_ativo():
     # COMENTÁRIO: Título alterado para "Cadastramento de Ativos de TI".
     return render_template("form_ativo.html", title="Cadastramento de Ativos de TI", categorias=categorias, modelos=modelos, today=today)
 
-@bp.route('/ativo/<id_ativo>')
+@main_bp.route('/ativo/<id_ativo>')
 @login_required
 def detalhes_ativo(id_ativo):
-    ativo_list = db_query("SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = ?", [id_ativo])
+    # Correção: Usa :id_ativo como placeholder e passa um dicionário como parâmetro
+    query_ativo = "SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = :id_ativo"
+    ativo_list = db_query(query_ativo, {'id_ativo': id_ativo})
+
     if not ativo_list:
         flash('Ativo não encontrado.', 'error')
         return redirect(url_for('main.index'))
+    
     ativo = ativo_list[0]
-    historico = db_query("SELECT * FROM historico WHERE id_ativo = ? ORDER BY timestamp DESC", [id_ativo])
+    
+    # Correção: Aplica o mesmo padrão para a consulta do histórico
+    query_historico = "SELECT * FROM historico WHERE id_ativo = :id_ativo ORDER BY timestamp DESC"
+    historico = db_query(query_historico, {'id_ativo': id_ativo})
+    
     return render_template("detalhes_ativo.html", title=f"Detalhes: {ativo['id_ativo']}", ativo=ativo, historico=historico)
 
 # --- NOVAS ROTAS ---
 
 # COMENTÁRIO: NOVA ROTA - Aba de Manutenção.
 # Esta rota busca e exibe todos os ativos que estão com o status "Em Manutenção".
-@bp.route('/manutencao')
+@main_bp.route('/manutencao')
 @login_required
 def manutencao():
     # COMENTÁRIO: A query busca informações do ativo e a data em que ele foi enviado
@@ -132,7 +141,7 @@ def manutencao():
 
 # COMENTÁRIO: NOVA ROTA - Aba de Relatórios.
 # Esta rota gera uma visão geral de todos os ativos, formatada para impressão.
-@bp.route('/relatorios')
+@main_bp.route('/relatorios')
 @login_required
 def relatorios():
     # COMENTÁRIO: Busca todos os ativos com informações essenciais para o relatório.
@@ -150,17 +159,32 @@ def relatorios():
                                                 ativos=ativos, total=total, data_geracao=data_geracao)
 
 # --- Rotas de Ações (sem grandes alterações) ---
-@bp.route('/ativo/<id_ativo>/distribuir', methods=['POST'])
+@main_bp.route('/ativo/<id_ativo>/distribuir', methods=['POST'])
 @login_required
 def distribuir_ativo(id_ativo):
     detalhes = {'usuario_responsavel': request.form['usuario_responsavel'], 'localizacao': request.form['localizacao']}
     chamado = request.form['numero_chamado']
+    
+    # Instancia o manager e movimenta o ativo
+    manager = AssetManager()
     manager.movimentar(id_ativo, 'Em Uso', chamado, detalhes)
+    
     flash('Ativo distribuído com sucesso! Gerando termo de responsabilidade...', 'success')
-    ativo_info = db_query("SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = ?", [id_ativo])[0]
+    
+    # CORREÇÃO: Altera a consulta para usar o placeholder :id_ativo e um dicionário de parâmetros
+    query = "SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = :id_ativo"
+    ativo_info_list = db_query(query, {'id_ativo': id_ativo})
+
+    # Adiciona uma verificação para garantir que o ativo foi encontrado antes de gerar o termo
+    if not ativo_info_list:
+        flash(f'Erro ao gerar termo: Ativo com ID {id_ativo} não foi encontrado após a movimentação.', 'error')
+        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
+        
+    ativo_info = ativo_info_list[0]
+    
     return render_template('termo.html', title="Termo de Responsabilidade", usuario=detalhes['usuario_responsavel'], ativos=[ativo_info], data_emissao=datetime.now().strftime('%d/%m/%Y %H:%M'))
 
-@bp.route('/ativo/<id_ativo>/movimentar', methods=['POST'])
+@main_bp.route('/ativo/<id_ativo>/movimentar', methods=['POST'])
 @login_required
 def movimentar_ativo(id_ativo):
     novo_status = request.form['novo_status']
@@ -169,7 +193,7 @@ def movimentar_ativo(id_ativo):
     flash(f'Status do ativo alterado para "{novo_status}" com sucesso!', 'success')
     return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
 
-@bp.route('/ativo/<id_ativo>/baixar', methods=['POST'])
+@main_bp.route('/ativo/<id_ativo>/baixar', methods=['POST'])
 @login_required
 def baixar_ativo(id_ativo):
     chamado = request.form['numero_chamado']
@@ -177,22 +201,125 @@ def baixar_ativo(id_ativo):
     flash('Ativo baixado (descartado) com sucesso!', 'success')
     return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
 
-@bp.route('/gerenciar', methods=['GET', 'POST'])
+@main_bp.route('/gerenciar', methods=['GET', 'POST'])
 @login_required
 def gerenciar_tipos():
     if request.method == 'POST':
         form_type, nome = request.form['form_type'], request.form['nome']
+        
         if form_type == 'categoria':
             try:
-                db_execute("INSERT INTO categorias (nome) VALUES (?)", [nome])
+                # Esta parte está correta
+                db_execute("INSERT INTO categorias (nome) VALUES (:nome)", {'nome': nome})
                 flash(f"Categoria '{nome}' adicionada com sucesso!", 'success')
-            except:
-                flash(f"Erro: Categoria '{nome}' já existe.", 'error')
+            except Exception as e:
+                flash(f"Erro: Categoria '{nome}' já existe ou ocorreu um problema.", 'error')
+
         elif form_type == 'modelo':
             categoria_id = request.form['categoria_id']
-            db_execute("INSERT INTO modelos (nome, categoria_id) VALUES (?, ?)", [nome, categoria_id])
+            
+            # LINHA COM ERRO:
+            # db_execute("INSERT INTO modelos (nome, categoria_id) VALUES (?, ?)", [nome, categoria_id])
+
+            # CORREÇÃO: Passe os parâmetros como um dicionário
+            params = {'nome': nome, 'categoria_id': categoria_id}
+            db_execute("INSERT INTO modelos (nome, categoria_id) VALUES (:nome, :categoria_id)", params)
+            
             flash(f"Modelo '{nome}' adicionado com sucesso!", 'success')
+            
         return redirect(url_for('main.gerenciar_tipos'))
+        
     categorias = db_query("SELECT * FROM categorias ORDER BY nome")
     return render_template("gerenciar_tipos.html", title="Gerenciar Categorias e Modelos", categorias=categorias)
 
+@main_bp.route('/importar', methods=['GET', 'POST'])
+@login_required
+def importar_ativos():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('Nenhum arquivo selecionado', 'error')
+            return redirect(request.url)
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('Nenhum arquivo selecionado', 'error')
+            return redirect(request.url)
+
+        if file:
+            try:
+                if file.filename.endswith('.csv'):
+                    # Garante que os dados sejam lidos como texto para não perder zeros à esquerda
+                    df = pd.read_csv(file, dtype=str).fillna('') 
+                elif file.filename.endswith('.xlsx'):
+                    df = pd.read_excel(file, dtype=str).fillna('')
+                else:
+                    flash('Formato de arquivo inválido. Use CSV ou XLSX.', 'error')
+                    return redirect(request.url)
+
+                df.columns = [col.lower().strip() for col in df.columns]
+
+                required_columns = ['numero_serie', 'categoria', 'modelo', 'marca', 'data_aquisicao']
+                if not all(col in df.columns for col in required_columns):
+                    flash(f'O arquivo deve conter as colunas obrigatórias: {required_columns}', 'error')
+                    return redirect(request.url)
+
+                sucesso = 0
+                erros = []
+                asset_manager = AssetManager()
+
+                for index, row in df.iterrows():
+                    try:
+                        # Validação simples
+                        if not row['numero_serie']:
+                            raise ValueError("O 'numero_serie' não pode estar vazio.")
+
+                        # 1. Encontrar ou criar Categoria
+                        categoria_nome = row['categoria'].strip()
+                        cat_query = db_query("SELECT id, substr(nome, 1, 2) as sigla FROM categorias WHERE nome = :nome", {'nome': categoria_nome})
+                        if not cat_query:
+                            db_execute("INSERT INTO categorias (nome) VALUES (:nome)", {'nome': categoria_nome})
+                            cat_query = db_query("SELECT id, substr(nome, 1, 2) as sigla FROM categorias WHERE nome = :nome", {'nome': categoria_nome})
+                        cat_id = cat_query[0]['id']
+                        sigla_cat = cat_query[0]['sigla']
+                        
+                        # 2. Encontrar ou criar Modelo
+                        modelo_nome = row['modelo'].strip()
+                        mod_query = db_query("SELECT id FROM modelos WHERE nome = :nome AND categoria_id = :cat_id", {'nome': modelo_nome, 'cat_id': cat_id})
+                        if not mod_query:
+                            db_execute("INSERT INTO modelos (nome, categoria_id) VALUES (:nome, :cat_id)", {'nome': modelo_nome, 'cat_id': cat_id})
+                            mod_query = db_query("SELECT id FROM modelos WHERE nome = :nome AND categoria_id = :cat_id", {'nome': modelo_nome, 'cat_id': cat_id})
+                        mod_id = mod_query[0]['id']
+                        
+                        # 3. Preparar dados para registro
+                        form_data = {
+                            'id_ativo': row.get('id_ativo', '').strip(), # Patrimônio opcional
+                            'tipo_ativo_sigla': sigla_cat.upper(),
+                            'numero_serie': row['numero_serie'].strip(),
+                            'marca': row['marca'].strip(),
+                            'modelo': mod_id,
+                            'categoria': cat_id,
+                            'nota_fiscal': row.get('nota_fiscal', ''),
+                            'fornecedor': row.get('fornecedor', ''),
+                            'data_aquisicao': str(row['data_aquisicao']),
+                            'cpu': row.get('cpu', ''),
+                            'ram_gb': row.get('ram_gb', None) or None,
+                            'armazenamento_gb': row.get('armazenamento_gb', None) or None,
+                            'sistema_operacional': row.get('sistema_operacional', '')
+                        }
+                        asset_manager.registrar_novo_ativo(form_data)
+                        sucesso += 1
+                    except Exception as e:
+                        erros.append(f"Linha {index + 2}: {e}")
+                
+                if not erros:
+                    flash(f'Importação concluída! {sucesso} ativos importados com sucesso.', 'success')
+                else:
+                    erros_str = " | ".join(erros)
+                    flash(f'{sucesso} ativos importados. Falhas: {len(erros)}. Detalhes: {erros_str}', 'error')
+
+            except Exception as e:
+                flash(f'Ocorreu um erro fatal ao processar o arquivo: {e}', 'error')
+
+        return redirect(url_for('main.importar_ativos'))
+
+    return render_template('importar.html', title="Importar Ativos")

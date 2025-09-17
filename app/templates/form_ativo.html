@@ -7,6 +7,10 @@
             <div>
                 <h3 class="text-lg font-semibold mb-4 border-b pb-2">Informações do Ativo</h3>
                 <div class="mb-4">
+                    <label for="id_ativo" class="block text-gray-700 text-sm font-bold mb-2">Patrimônio (Opcional)</label>
+                    <input type="text" name="id_ativo" id="id_ativo" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="Deixe em branco para gerar automaticamente">
+                </div>
+                <div class="mb-4">
                     <label for="categoria" class="block text-gray-700 text-sm font-bold mb-2">Categoria</label>
                     <select name="categoria" id="categoria" class="shadow border rounded w-full py-2 px-3" required onchange="filterModels()">
                         <option value="">Selecione...</option>
@@ -45,6 +49,14 @@
                 <div class="mb-4">
                     <label for="fornecedor" class="block text-gray-700 text-sm font-bold mb-2">Fornecedor</label>
                     <input type="text" name="fornecedor" id="fornecedor" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div class="mb-4">
+                    <label for="destino" class="block text-gray-700 text-sm font-bold mb-2">Destino</label>
+                    <select name="destino" id="destino" class="shadow border rounded w-full py-2 px-3" required>
+                        <option value="Estoque TI">Estoque TI</option>
+                        <option value="Projeto">Projeto</option>
+                        <option value="Backup Emergencial">Backup Emergencial</option>
+                    </select>
                 </div>
                  <div class="mb-4">
                     <label for="data_aquisicao" class="block text-gray-700 text-sm font-bold mb-2">Data de Aquisição</label>

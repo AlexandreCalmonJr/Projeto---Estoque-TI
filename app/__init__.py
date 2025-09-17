@@ -31,12 +31,12 @@ def create_app(config_name=None):
         binds[key] = db_info['url']
     app.config['SQLALCHEMY_BINDS'] = binds
     
-    # Inicializar engines como None - serão criados quando necessário
-    app.asset_engines = {}
-    
     # Registrar blueprints
     from app.main import main_bp
     app.register_blueprint(main_bp)
+
+    from app.admin import admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/admin') # Adicionar prefixo para rotas de admin
     
     # User loader para Flask-Login
     @login_manager.user_loader
@@ -44,22 +44,19 @@ def create_app(config_name=None):
         from app.models import User
         return User.query.get(int(user_id))
     
-    # Criar bancos de dados se não existirem
+    # Criar tabelas e popular dados iniciais
     with app.app_context():
+        # Cria a tabela 'users' a partir do modelo SQLAlchemy
+        db.create_all() 
+        
+        # ADICIONE ESTAS LINHAS:
+        # Importa e executa a lógica para criar as tabelas de ativos (categorias, etc.)
+        # e popular as categorias padrão.
         try:
-            # Primeiro inicializar as tabelas do SQLAlchemy
-            db.create_all()
-            
-            # Depois configurar os bancos específicos
             from app.sqlite_setup import setup_database_logic
             setup_database_logic()
-            
-            print("Bancos de dados configurados com sucesso!")
-            
+            print("Bancos de dados de ativos configurados com sucesso!")
         except Exception as e:
-            print(f"Erro ao configurar bancos de dados: {e}")
-            # Tentar configuração básica
-            from app.sqlite_setup import setup_database_logic
-            setup_database_logic()
-    
+            print(f"Erro ao configurar bancos de dados de ativos: {e}")
+
     return app
