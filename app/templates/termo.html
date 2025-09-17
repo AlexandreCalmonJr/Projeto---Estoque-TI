@@ -1,143 +1,102 @@
 {% extends 'base.html' %}
 {% block content %}
 <style>
-    .signature-pad-container {
-        border: 2px dashed #ccc;
-        border-radius: 0.5rem;
-        background-color: #f8f9fa;
-    }
-    canvas {
-        width: 100%;
-        height: 200px;
-    }
-    /* Estilos para quando a página for impressa */
+    /* Estilos para a impressão */
     @media print {
         body * {
-            visibility: hidden; /* Esconde tudo */
+            visibility: hidden;
         }
-        #printable-area, #printable-area * {
-            visibility: visible; /* Mostra apenas a área do termo */
+        #print-area, #print-area * {
+            visibility: visible;
         }
-        #printable-area {
+        #print-area {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
         }
         .no-print {
-            display: none; /* Garante que os botões não apareçam */
+            display: none;
         }
     }
 </style>
 
-<div id="printable-area" class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
-    <h3 class="text-2xl font-bold text-center mb-4">TERMO DE RESPONSABILIDADE DE ATIVOS DE TI</h3>
-    <p class="text-center text-gray-500 mb-6">Data de Emissão: {{ data_emissao }}</p>
-    
-    <p class="mb-4">Eu, <strong>{{ usuario }}</strong>, declaro ter recebido da empresa os equipamentos de TI listados abaixo, em perfeitas condições de uso e funcionamento. Comprometo-me a zelar pela sua guarda e conservação, utilizando-os exclusivamente para fins profissionais.</p>
-    <p class="mb-6">Estou ciente de que deverei comunicar imediatamente ao departamento de TI qualquer dano, defeito ou extravio dos equipamentos.</p>
-    
-    <h4 class="font-bold text-lg mb-4 border-b pb-2">ATIVOS ENTREGUES</h4>
-    
-    {% for ativo in ativos %}
-    <div class="mb-4 border p-4 rounded-lg">
-        <p><strong>ID do Ativo:</strong> <span class="font-mono">{{ ativo.id_ativo }}</span></p>
-        <p><strong>Tipo:</strong> {{ ativo.categoria }}</p>
-        <p><strong>Marca/Modelo:</strong> {{ ativo.marca }} {{ ativo.modelo }}</p>
-        <p><strong>Número de Série:</strong> {{ ativo.numero_serie }}</p>
-    </div>
-    {% endfor %}
-    
-    <div class="mt-16 text-center">
-        <div id="signature-section">
-            <div class="mb-2"><strong>Assinatura do Responsável:</strong></div>
-            <div id="signature-pad-wrapper" class="signature-pad-container">
-                <canvas></canvas>
+<div class="flex flex-col items-center">
+    <div id="print-area" class="bg-white p-12 shadow-2xl max-w-4xl mx-auto">
+        <div class="flex items-center mb-8">
+            <div class="w-64 pr-4">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo da Empresa" class="h-16">
             </div>
-            <div id="signature-image-wrapper" class="hidden mt-4">
-                </div>
-        </div>
-
-        <div id="manual-signature-section" class="hidden mt-8">
-             <div class="inline-block">
-                <div class="w-80 h-px bg-black"></div>
-                <p class="mt-2">{{ usuario }}</p>
+            <div class="bg-blue-700 text-white text-center py-1 rounded-r-full flex-grow">
+                <h1 class="text-2xl font-bold tracking-wider">TERMO DE RESPONSABILIDADE DE ATIVOS</h1>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="max-w-4xl mx-auto mt-6 flex flex-wrap justify-center gap-4 no-print">
-    <button id="print-btn" class="bg-gray-600 text-white font-bold py-2 px-6 rounded hover:bg-gray-700">
-        1. Imprimir para Assinar Manualmente
-    </button>
-    <button id="clear-btn" class="bg-yellow-500 text-white font-bold py-2 px-6 rounded hover:bg-yellow-600">
-        2. Limpar Assinatura Digital
-    </button>
-    <button id="save-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700">
-        3. Finalizar e Gerar PDF/Imprimir
-    </button>
-</div>
+        <div class="text-sm">
+            <h3 class="font-bold mb-2 text-gray-600 tracking-wider">INFORMAÇÕES DA SOLICITAÇÃO</h3>
+            <div class="grid grid-cols-2 gap-x-8 gap-y-1 mb-6 border p-4 rounded-md">
+                <p><strong>SOLICITANTE:</strong> <span>{{ solicitante }}</span></p>
+                <p><strong>UNIDADE:</strong> <span>{{ unidade }}</span></p>
+                <p><strong>USUÁRIO:</strong> <span>{{ usuario }}</span></p>
+                <p><strong>LOCALIDADE:</strong> <span>{{ localidade }}</span></p>
+                <p><strong>SETOR:</strong> <span>{{ setor }}</span></p>
+                <p><strong>MATRÍCULA:</strong> <span>(Não aplicável)</span></p>
+            </div>
 
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+            <h3 class="font-bold mb-2 text-gray-600 tracking-wider">INFORMAÇÕES DO ATIVO</h3>
+            <table class="w-full border-collapse border border-gray-300 mb-6 text-left">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-2 border border-gray-300">CLASSE</th>
+                        <th class="p-2 border border-gray-300">FABRICANTE</th>
+                        <th class="p-2 border border-gray-300">MODELO</th>
+                        <th class="p-2 border border-gray-300">PATRIMÔNIO</th>
+                        <th class="p-2 border border-gray-300">SÉRIE</th>
+                        <th class="p-2 border border-gray-300">CHAMADO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ativo in ativos %}
+                    <tr>
+                        <td class="p-2 border border-gray-300">{{ ativo.categoria }}</td>
+                        <td class="p-2 border border-gray-300">{{ ativo.marca }}</td>
+                        <td class="p-2 border border-gray-300">{{ ativo.modelo }}</td>
+                        <td class="p-2 border border-gray-300">{{ ativo.id_ativo }}</td>
+                        <td class="p-2 border border-gray-300">{{ ativo.numero_serie }}</td>
+                        <td class="p-2 border border-gray-300">{{ chamado }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
 
-<script>
-    const canvas = document.querySelector("canvas");
-    const signaturePad = new SignaturePad(canvas, {
-        backgroundColor: 'rgb(248, 249, 250)'
-    });
+            <h3 class="font-bold mb-2 text-gray-600 tracking-wider">OBSERVAÇÃO:</h3>
+            <div class="space-y-2 text-xs border p-4 rounded-md bg-gray-50">
+                <p><strong>CLÁUSULA PRIMEIRA:</strong> O equipamento deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade a ser exercida pelo COLABORADOR.</p>
+                <p><strong>CLÁUSULA SEGUNDA:</strong> Ficará o colaborador responsável pelo uso e conservação do equipamento, em caso de mau uso será analisado a causa do evento e posteriormente aplicado as devidas penalidades.</p>
+                <p><strong>CLÁUSULA TERCEIRA:</strong> O Setor tem somente a DETENÇÃO, tendo em vista o uso exclusivo para prestação de serviços profissionais, e NÃO a PROPRIEDADE do equipamento, sendo rigorosamente proibido o empréstimo, aluguel ou cessão deste a terceiros.</p>
+                <p><strong>CLÁUSULA QUARTA:</strong> No caso de o equipamento ficar sem uso no setor, o COLABORADOR se responsabiliza a devolver esse ativo para que a TI, possa realocar para outras unidades e tirar o mesmo da responsabilidade.</p>
+            </div>
 
-    const printBtn = document.getElementById('print-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const saveBtn = document.getElementById('save-btn');
-
-    // Botão 1: Imprimir para assinatura manual
-    printBtn.addEventListener('click', () => {
-        // Esconde a área de assinatura digital e mostra a linha de assinatura manual
-        document.getElementById('signature-section').style.display = 'none';
-        document.getElementById('manual-signature-section').style.display = 'block';
-        window.print();
-        // Restaura a visualização após a impressão
-        document.getElementById('signature-section').style.display = 'block';
-        document.getElementById('manual-signature-section').style.display = 'none';
-    });
-    
-    // Botão 2: Limpar o canvas
-    clearBtn.addEventListener('click', () => {
-        signaturePad.clear();
-        // Garante que a imagem da assinatura antiga seja removida se houver
-        document.getElementById('signature-pad-wrapper').classList.remove('hidden');
-        document.getElementById('signature-image-wrapper').classList.add('hidden');
-        document.getElementById('signature-image-wrapper').innerHTML = '';
-    });
-
-    // Botão 3: Salvar a assinatura como imagem e preparar para impressão/PDF
-    saveBtn.addEventListener('click', () => {
-        if (signaturePad.isEmpty()) {
-            alert("Por favor, forneça uma assinatura antes de salvar.");
-        } else {
-            // Pega a assinatura como uma imagem no formato Base64
-            const dataURL = signaturePad.toDataURL("image/png");
+            <p class="mt-8"><strong>Data:</strong> <span>{{ data_emissao }}</span></p>
             
-            // Cria um elemento de imagem e o exibe
-            const img = document.createElement('img');
-            img.src = dataURL;
-            img.style.width = '320px'; // Define um tamanho para a imagem
-            img.style.margin = '0 auto'; // Centraliza a imagem
+            <div class="mt-16 grid grid-cols-2 gap-8 text-center">
+                <div>
+                    <p class="border-t border-gray-400 pt-2">Entregue por: {{ solicitante }}</p>
+                </div>
+                <div>
+                    <p class="border-t border-gray-400 pt-2">Recebido por: {{ usuario }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            const signatureImageWrapper = document.getElementById('signature-image-wrapper');
-            signatureImageWrapper.innerHTML = ''; // Limpa antes de adicionar
-            signatureImageWrapper.appendChild(img);
-
-            // Esconde o canvas e mostra a imagem final
-            document.getElementById('signature-pad-wrapper').classList.add('hidden');
-            signatureImageWrapper.classList.remove('hidden');
-
-            // Abre a janela de impressão
-            // O usuário pode escolher "Imprimir" ou "Salvar como PDF"
-            window.print();
-        }
-    });
-
-</script>
+    <div class="mt-6 no-print">
+        <button onclick="window.print()" class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 font-bold flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd" />
+            </svg>
+            Imprimir / Salvar PDF
+        </button>
+    </div>
+</div>
 {% endblock %}

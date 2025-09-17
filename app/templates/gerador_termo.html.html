@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Termo de Responsabilidade de Ativos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        /* Estilos para a impressão */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+        
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="flex flex-col md:flex-row h-screen">
+        <!-- PAINEL DE CONTROLE (FORMULÁRIO) -->
+        <div id="control-panel" class="w-full md:w-1/3 p-6 bg-white shadow-lg overflow-y-auto no-print">
+            <div class="flex items-center mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2V4a2 2 0 00-2-2H9z" />
+                    <path fill-rule="evenodd" d="M4 8a1 1 0 011-1h1v2H5a1 1 0 01-1-1zm12 0a1 1 0 00-1-1h-1v2h1a1 1 0 001-1zM4 4a1 1 0 011-1h1v2H5a1 1 0 01-1-1zm12 0a1 1 0 00-1-1h-1v2h1a1 1 0 001-1z" clip-rule="evenodd" />
+                </svg>
+                <h1 class="text-2xl font-bold text-gray-700">Gerador de Termo</h1>
+            </div>
+
+            <!-- Seção de Informações da Solicitação -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2 mb-4">Informações da Solicitação</h2>
+                <div class="grid grid-cols-1 gap-4">
+                    <input type="text" id="solicitante" placeholder="Solicitante" class="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                    <input type="text" id="unidade" placeholder="Unidade" class="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                    <input type="text" id="usuario" placeholder="Usuário" class="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                    <input type="text" id="localidade" placeholder="Localidade" class="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                    <input type="text" id="setor" placeholder="Setor" class="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                    <input type="text" id="matricula" placeholder="Matrícula" class="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                </div>
+            </div>
+
+            <!-- Seção de Informações do Ativo -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-blue-700 border-b-2 border-blue-200 pb-2">Informações dos Ativos</h2>
+                    <button onclick="addAssetRow()" class="bg-blue-500 text-white px-3 py-1 rounded-full hover:bg-blue-600 text-sm font-bold">+</button>
+                </div>
+                <div id="asset-rows" class="space-y-4">
+                    <!-- Linhas de ativo serão adicionadas aqui via JS -->
+                </div>
+            </div>
+
+             <!-- Seção de Data e Ações -->
+             <div class="mt-8 pt-6 border-t">
+                <h2 class="text-xl font-semibold text-blue-700 pb-2 mb-4">Data e Finalização</h2>
+                <input type="date" id="document-date" class="w-full p-2 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="updatePreview()">
+                
+                <button onclick="printDocument()" class="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 font-bold flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd" />
+                    </svg>
+                    Imprimir / Salvar PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- ÁREA DE VISUALIZAÇÃO DO DOCUMENTO -->
+        <div class="w-full md:w-2/3 p-8 bg-gray-200 overflow-y-auto">
+            <div id="print-area" class="bg-white p-12 shadow-2xl max-w-4xl mx-auto">
+                <!-- Cabeçalho do Documento -->
+                <div class="flex items-center mb-8">
+                    <!-- Logo -->
+                    <div class="w-64 pr-4">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo da Empresa" class="h-16">
+                    </div>
+                    <!-- Barra de Título -->
+                    <div class="bg-blue-700 text-white text-center py-1 rounded-r-full flex-grow">
+                        <h1 id="preview-title" class="text-2xl font-bold tracking-wider">TERMO DE RESPONSABILIDADE DE ATIVOS</h1>
+                    </div>
+                </div>
+
+
+                <!-- Corpo do Documento -->
+                <div class="text-sm">
+                    <h3 class="font-bold mb-2 text-gray-600 tracking-wider">INFORMAÇÕES DA SOLICITAÇÃO</h3>
+                    <div class="grid grid-cols-2 gap-x-8 gap-y-1 mb-6 border p-4 rounded-md">
+                        <p><strong>SOLICITANTE:</strong> <span id="preview-solicitante"></span></p>
+                        <p><strong>UNIDADE:</strong> <span id="preview-unidade"></span></p>
+                        <p><strong>USUÁRIO:</strong> <span id="preview-usuario"></span></p>
+                        <p><strong>LOCALIDADE:</strong> <span id="preview-localidade"></span></p>
+                        <p><strong>SETOR:</strong> <span id="preview-setor"></span></p>
+                        <p><strong>MATRÍCULA:</strong> <span id="preview-matricula"></span></p>
+                    </div>
+
+                    <h3 class="font-bold mb-2 text-gray-600 tracking-wider">INFORMAÇÕES DO ATIVO</h3>
+                    <table class="w-full border-collapse border border-gray-300 mb-6 text-left">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-2 border border-gray-300">CLASSE</th>
+                                <th class="p-2 border border-gray-300">FABRICANTE</th>
+                                <th class="p-2 border border-gray-300">MODELO</th>
+                                <th class="p-2 border border-gray-300">PATRIMÔNIO</th>
+                                <th class="p-2 border border-gray-300">SÉRIE</th>
+                                <th class="p-2 border border-gray-300">CHAMADO</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-asset-table">
+                            <!-- Linhas da tabela de ativos geradas por JS -->
+                        </tbody>
+                    </table>
+
+                    <h3 class="font-bold mb-2 text-gray-600 tracking-wider">OBSERVAÇÃO:</h3>
+                    <div class="space-y-2 text-xs border p-4 rounded-md bg-gray-50">
+                        <p><strong>CLÁUSULA PRIMEIRA:</strong> O equipamento deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade a ser exercida pelo COLABORADOR.</p>
+                        <p><strong>CLÁUSULA SEGUNDA:</strong> Ficará o colaborador responsável pelo uso e conservação do equipamento, em caso de mau uso será analisado a causa do evento e posteriormente aplicado as devidas penalidades.</p>
+                        <p><strong>CLÁUSULA TERCEIRA:</strong> O Setor tem somente a DETENÇÃO, tendo em vista o uso exclusivo para prestação de serviços profissionais, e NÃO a PROPRIEDADE do equipamento, sendo rigorosamente proibido o empréstimo, aluguel ou cessão deste a terceiros.</p>
+                        <p><strong>CLÁUSULA QUARTA:</strong> No caso de o equipamento ficar sem uso no setor, o COLABORADOR se responsabiliza a devolver esse ativo para que a TI, possa realocar para outras unidades e tirar o mesmo da responsabilidade.</p>
+                    </div>
+
+                    <p class="mt-8"><strong>Data:</strong> <span id="preview-date"></span></p>
+                    
+                    <div class="mt-16 grid grid-cols-2 gap-8 text-center">
+                        <div>
+                            <p class="border-t border-gray-400 pt-2">Entregue por:</p>
+                        </div>
+                        <div>
+                            <p class="border-t border-gray-400 pt-2">Recebido por:</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let assetRowCount = 0;
+
+        // Função para atualizar a visualização do documento com os dados do formulário
+        function updatePreview() {
+            // Atualiza informações da solicitação
+            document.getElementById('preview-solicitante').textContent = document.getElementById('solicitante').value;
+            document.getElementById('preview-unidade').textContent = document.getElementById('unidade').value;
+            document.getElementById('preview-usuario').textContent = document.getElementById('usuario').value;
+            document.getElementById('preview-localidade').textContent = document.getElementById('localidade').value;
+            document.getElementById('preview-setor').textContent = document.getElementById('setor').value;
+            document.getElementById('preview-matricula').textContent = document.getElementById('matricula').value;
+
+            // Atualiza a data
+            const dateInput = document.getElementById('document-date').value;
+            if (dateInput) {
+                const [year, month, day] = dateInput.split('-');
+                document.getElementById('preview-date').textContent = `${day}/${month}/${year}`;
+            } else {
+                 document.getElementById('preview-date').textContent = '__/__/____';
+            }
+
+
+            // Atualiza a tabela de ativos
+            const assetTableBody = document.getElementById('preview-asset-table');
+            assetTableBody.innerHTML = ''; // Limpa a tabela antes de recriar
+            
+            const assetRows = document.querySelectorAll('.asset-row');
+            if (assetRows.length === 0) {
+                 assetTableBody.innerHTML = '<tr><td colspan="6" class="p-2 text-center text-gray-400">Nenhum ativo adicionado</td></tr>';
+            } else {
+                assetRows.forEach(row => {
+                    const inputs = row.querySelectorAll('input');
+                    const classe = inputs[0].value;
+                    const fabricante = inputs[1].value;
+                    const modelo = inputs[2].value;
+                    const patrimonio = inputs[3].value;
+                    const serie = inputs[4].value;
+                    const chamado = inputs[5].value;
+
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td class="p-2 border border-gray-300">${classe}</td>
+                        <td class="p-2 border border-gray-300">${fabricante}</td>
+                        <td class="p-2 border border-gray-300">${modelo}</td>
+                        <td class="p-2 border border-gray-300">${patrimonio}</td>
+                        <td class="p-2 border border-gray-300">${serie}</td>
+                        <td class="p-2 border border-gray-300">${chamado}</td>
+                    `;
+                    assetTableBody.appendChild(newRow);
+                });
+            }
+        }
+
+        // Função para adicionar uma nova linha de inputs para um ativo
+        function addAssetRow() {
+            assetRowCount++;
+            const assetRowsContainer = document.getElementById('asset-rows');
+            const newRow = document.createElement('div');
+            newRow.classList.add('asset-row', 'p-4', 'border', 'rounded-lg', 'space-y-2', 'bg-gray-50');
+            newRow.id = `asset-row-${assetRowCount}`;
+
+            newRow.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <p class="font-semibold text-gray-600">Ativo #${assetRowCount}</p>
+                    <button onclick="removeAssetRow(${assetRowCount})" class="text-red-500 hover:text-red-700 font-bold">Remover</button>
+                </div>
+                <input type="text" placeholder="Classe" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                <input type="text" placeholder="Fabricante" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                <input type="text" placeholder="Modelo" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                <input type="text" placeholder="Patrimônio" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                <input type="text" placeholder="Série" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+                <input type="text" placeholder="Chamado" class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="updatePreview()">
+            `;
+            assetRowsContainer.appendChild(newRow);
+            updatePreview();
+        }
+
+        // Função para remover uma linha de ativo
+        function removeAssetRow(rowNumber) {
+            const rowToRemove = document.getElementById(`asset-row-${rowNumber}`);
+            if (rowToRemove) {
+                rowToRemove.remove();
+                updatePreview();
+            }
+        }
+
+        // Função para imprimir o documento
+        function printDocument() {
+            window.print();
+        }
+        
+        // Inicialização quando a página carrega
+        window.onload = () => {
+            // Adiciona uma linha de ativo inicial
+            addAssetRow();
+            // Define a data atual no campo de data
+            document.getElementById('document-date').valueAsDate = new Date();
+            // Atualiza a visualização inicial
+            updatePreview();
+        };
+
+    </script>
+</body>
+</html>
+

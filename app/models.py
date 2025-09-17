@@ -72,28 +72,29 @@ class AssetManager:
             
             # Lógica para patrimônio opcional
             id_ativo = form_data.get('id_ativo')
-            if id_ativo and id_ativo.strip(): # Se um ID foi fornecido
+            if id_ativo and id_ativo.strip():
                 id_ativo = id_ativo.strip()
-                # Verifica se o patrimônio já existe
                 result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': id_ativo})
                 if result.first():
                     raise ValueError(f"O patrimônio '{id_ativo}' já existe. Tente outro.")
-            else: # Se não foi fornecido, gera automaticamente
+            else:
                 tipo = form_data['tipo_ativo_sigla']
                 ano = datetime.now().year
-                
                 result = conn.execute(text("SELECT COUNT(*) FROM ativos WHERE id_ativo LIKE :like_pattern"), {'like_pattern': f"{tipo}-{ano}-%"})
                 sequencial = result.scalar_one() + 1
                 id_ativo = f"{tipo}-{ano}-{sequencial:03d}"
             
-            # O resto da função continua como antes, mas usando a variável 'id_ativo'
+            # CORREÇÃO APLICADA AQUI: A instrução SQL foi corrigida para ter o número correto de colunas e valores.
             sql = """
-                INSERT INTO ativos (id_ativo, numero_serie, marca, modelo_id, categoria_id, status, nota_fiscal, 
-                                fornecedor, data_aquisicao, localizacao, usuario_responsavel, destino,
-                                cpu, ram_gb, armazenamento_gb, sistema_operacional)
-                VALUES (:id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id, 'Em Estoque', :nota_fiscal, 
-                        :fornecedor, :data_aquisicao, :destino, NULL, :destino,
-                        :cpu, :ram_gb, :armazenamento_gb, :sistema_operacional)
+                INSERT INTO ativos (
+                    id_ativo, numero_serie, marca, modelo_id, categoria_id, status, 
+                    nota_fiscal, fornecedor, data_aquisicao, localizacao, usuario_responsavel, 
+                    destino, cpu, ram_gb, armazenamento_gb, sistema_operacional
+                ) VALUES (
+                    :id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id, 'Em Estoque', 
+                    :nota_fiscal, :fornecedor, :data_aquisicao, :destino, NULL, 
+                    :destino, :cpu, :ram_gb, :armazenamento_gb, :sistema_operacional
+                )
             """
             params = {
                 'id_ativo': id_ativo, 
@@ -103,8 +104,8 @@ class AssetManager:
                 'categoria_id': form_data['categoria'], 
                 'nota_fiscal': form_data.get('nota_fiscal'),
                 'fornecedor': form_data.get('fornecedor'), 
-                'data_aquisicao': form_data.get('data_aquisicao') or None, # Permite data vazia
-                'destino': form_data.get('destino'), # Salva o destino
+                'data_aquisicao': form_data.get('data_aquisicao') or None,
+                'destino': form_data.get('destino'),
                 'cpu': form_data.get('cpu'), 
                 'ram_gb': form_data.get('ram_gb') or None,
                 'armazenamento_gb': form_data.get('armazenamento_gb') or None, 

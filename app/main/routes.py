@@ -162,27 +162,39 @@ def relatorios():
 @main_bp.route('/ativo/<id_ativo>/distribuir', methods=['POST'])
 @login_required
 def distribuir_ativo(id_ativo):
-    detalhes = {'usuario_responsavel': request.form['usuario_responsavel'], 'localizacao': request.form['localizacao']}
+    detalhes = {
+        'usuario_responsavel': request.form['usuario_responsavel'], 
+        'localizacao': request.form['localizacao']
+    }
     chamado = request.form['numero_chamado']
     
-    # Instancia o manager e movimenta o ativo
     manager = AssetManager()
     manager.movimentar(id_ativo, 'Em Uso', chamado, detalhes)
     
     flash('Ativo distribuído com sucesso! Gerando termo de responsabilidade...', 'success')
     
-    # CORREÇÃO: Altera a consulta para usar o placeholder :id_ativo e um dicionário de parâmetros
     query = "SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = :id_ativo"
     ativo_info_list = db_query(query, {'id_ativo': id_ativo})
 
-    # Adiciona uma verificação para garantir que o ativo foi encontrado antes de gerar o termo
     if not ativo_info_list:
         flash(f'Erro ao gerar termo: Ativo com ID {id_ativo} não foi encontrado após a movimentação.', 'error')
         return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
         
     ativo_info = ativo_info_list[0]
     
-    return render_template('termo.html', title="Termo de Responsabilidade", usuario=detalhes['usuario_responsavel'], ativos=[ativo_info], data_emissao=datetime.now().strftime('%d/%m/%Y %H:%M'))
+    # Prepara os dados para o novo template
+    termo_data = {
+        'solicitante': current_user.username,
+        'unidade': session.get('database_name', 'N/A'), # Pega o nome da base de dados da sessão
+        'usuario': detalhes['usuario_responsavel'],
+        'localidade': ativo_info.get('localizacao', 'N/A'),
+        'setor': detalhes['localizacao'],
+        'chamado': chamado,
+        'ativos': [ativo_info],
+        'data_emissao': datetime.now().strftime('%d/%m/%Y')
+    }
+    
+    return render_template('termo.html', title="Termo de Responsabilidade", **termo_data)
 
 @main_bp.route('/ativo/<id_ativo>/movimentar', methods=['POST'])
 @login_required
@@ -323,3 +335,9 @@ def importar_ativos():
         return redirect(url_for('main.importar_ativos'))
 
     return render_template('importar.html', title="Importar Ativos")
+
+@main_bp.route('/gerar-termo')
+@login_required
+def gerador_termo():
+    """Renderiza a página do gerador de termo de responsabilidade."""
+    return render_template('gerador_termo.html', title="Gerador de Termo")
