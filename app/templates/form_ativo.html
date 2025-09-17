@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
+    <form method="POST" id="form-ativo">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Coluna 1: Informações Principais -->
+            <div>
+                <h3 class="text-lg font-semibold mb-4 border-b pb-2">Informações do Ativo</h3>
+                <div class="mb-4">
+                    <label for="categoria" class="block text-gray-700 text-sm font-bold mb-2">Categoria</label>
+                    <select name="categoria" id="categoria" class="shadow border rounded w-full py-2 px-3" required onchange="filterModels()">
+                        <option value="">Selecione...</option>
+                        {% for c in categorias %}
+                        <option value="{{ c.id }}" data-sigla="{{ c.sigla.upper() }}">{{ c.nome }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="tipo_ativo_sigla" id="tipo_ativo_sigla">
+                </div>
+                <div class="mb-4">
+                    <label for="modelo" class="block text-gray-700 text-sm font-bold mb-2">Modelo</label>
+                    <select name="modelo" id="modelo" class="shadow border rounded w-full py-2 px-3" required>
+                        <option value="">Selecione uma categoria primeiro...</option>
+                        {% for m in modelos %}
+                        <option value="{{ m.id }}" data-categoria="{{ m.categoria_id }}" style="display: none;">{{ m.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="marca" class="block text-gray-700 text-sm font-bold mb-2">Marca</label>
+                    <input type="text" name="marca" id="marca" class="shadow appearance-none border rounded w-full py-2 px-3" required>
+                </div>
+                <div class="mb-4">
+                    <label for="numero_serie" class="block text-gray-700 text-sm font-bold mb-2">Número de Série</label>
+                    <input type="text" name="numero_serie" id="numero_serie" class="shadow appearance-none border rounded w-full py-2 px-3" required>
+                </div>
+            </div>
+
+            <!-- Coluna 2: Detalhes da Aquisição -->
+            <div>
+                <h3 class="text-lg font-semibold mb-4 border-b pb-2">Detalhes da Aquisição</h3>
+                <div class="mb-4">
+                    <label for="nota_fiscal" class="block text-gray-700 text-sm font-bold mb-2">Nota Fiscal</label>
+                    <input type="text" name="nota_fiscal" id="nota_fiscal" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div class="mb-4">
+                    <label for="fornecedor" class="block text-gray-700 text-sm font-bold mb-2">Fornecedor</label>
+                    <input type="text" name="fornecedor" id="fornecedor" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                 <div class="mb-4">
+                    <label for="data_aquisicao" class="block text-gray-700 text-sm font-bold mb-2">Data de Aquisição</label>
+                    <input type="date" name="data_aquisicao" id="data_aquisicao" value="{{ today }}" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Especificações Técnicas -->
+        <div class="mt-8">
+            <h3 class="text-lg font-semibold mb-4 border-b pb-2">Especificações Técnicas (Opcional)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div>
+                    <label for="cpu" class="block text-gray-700 text-sm font-bold mb-2">Processador (CPU)</label>
+                    <input type="text" name="cpu" id="cpu" placeholder="Ex: Core i5-1135G7" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label for="ram_gb" class="block text-gray-700 text-sm font-bold mb-2">Memória RAM (GB)</label>
+                    <input type="number" name="ram_gb" id="ram_gb" placeholder="Ex: 16" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label for="armazenamento_gb" class="block text-gray-700 text-sm font-bold mb-2">Armazenamento (GB)</label>
+                    <input type="number" name="armazenamento_gb" id="armazenamento_gb" placeholder="Ex: 256" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div>
+                    <label for="sistema_operacional" class="block text-gray-700 text-sm font-bold mb-2">Sistema Operacional</label>
+                    <input type="text" name="sistema_operacional" id="sistema_operacional" placeholder="Ex: Windows 11 Pro" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end mt-8">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Cadastrar Ativo
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function filterModels() {
+        const categoriaSelect = document.getElementById('categoria');
+        const modeloSelect = document.getElementById('modelo');
+        const siglaInput = document.getElementById('tipo_ativo_sigla');
+        const selectedCategoriaId = categoriaSelect.value;
+        const selectedOption = categoriaSelect.options[categoriaSelect.selectedIndex];
+
+        siglaInput.value = selectedOption.dataset.sigla || '';
+        
+        modeloSelect.value = '';
+
+        for (let option of modeloSelect.options) {
+            if (option.value === "") {
+                option.style.display = 'block';
+                option.textContent = selectedCategoriaId ? 'Selecione um modelo...' : 'Selecione uma categoria primeiro...';
+            } else {
+                if (option.dataset.categoria === selectedCategoriaId) {
+                    option.style.display = 'block';
+                } else {
+                    option.style.display = 'none';
+                }
+            }
+        }
+    }
+    document.addEventListener('DOMContentLoaded', filterModels);
+</script>
+{% endblock %}
+

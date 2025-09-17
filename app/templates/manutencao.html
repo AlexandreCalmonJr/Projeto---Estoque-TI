@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+    <table class="w-full text-left">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="p-4 font-bold text-gray-600">Patrimônio</th>
+                <th class="p-4 font-bold text-gray-600">Categoria</th>
+                <th class="p-4 font-bold text-gray-600">Modelo</th>
+                <th class="p-4 font-bold text-gray-600">Nº de Série</th>
+                <th class="p-4 font-bold text-gray-600">Data de Envio</th>
+                <th class="p-4 font-bold text-gray-600">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ativo in ativos %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-4 text-gray-900 font-medium">{{ ativo.id_ativo }}</td>
+                <td class="p-4 text-gray-700">{{ ativo.categoria }}</td>
+                <td class="p-4 text-gray-700">{{ ativo.modelo }}</td>
+                <td class="p-4 text-gray-700">{{ ativo.numero_serie }}</td>
+                <td class="p-4 text-gray-700">{{ ativo.data_evento or 'Não registrado' }}</td>
+                <td class="p-4">
+                    <a href="{{ url_for('main.detalhes_ativo', id_ativo=ativo.id_ativo) }}" class="text-blue-600 hover:underline font-semibold">Ver Detalhes</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="p-4 text-center text-gray-500">Nenhum ativo em manutenção no momento.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-6">
+    <form method="GET" action="{{ url_for('main.index') }}" class="flex items-center">
+        <input type="text" name="q" placeholder="Buscar por patrimônio, serial, usuário..." value="{{ search_query or '' }}"
+               class="w-full md:w-1/2 px-4 py-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition-colors">
+            Buscar
+        </button>
+        {% if search_query %}
+            <a href="{{ url_for('main.index') }}" class="ml-4 text-sm text-gray-600 hover:underline">Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+    <table class="w-full text-left">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="p-4 font-bold text-gray-600">Patrimônio</th>
+                <th class="p-4 font-bold text-gray-600">Categoria</th>
+                <th class="p-4 font-bold text-gray-600">Modelo</th>
+                <th class="p-4 font-bold text-gray-600">Nº de Série</th>
+                <th class="p-4 font-bold text-gray-600">Status</th>
+                <th class="p-4 font-bold text-gray-600">Responsável</th>
+                <th class="p-4 font-bold text-gray-600">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ativo in ativos %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-4 text-gray-900 font-medium">{{ ativo.id_ativo }}</td>
+                <td class="p-4 text-gray-700">{{ ativo.categoria }}</td>
+                <td class="p-4 text-gray-700">{{ ativo.modelo }}</td>
+                <td class="p-4 text-gray-700">{{ ativo.numero_serie }}</td>
+                <td class="p-4 text-gray-700">
+                    <span class="px-2 py-1 font-semibold leading-tight text-green-700 bg-green-100 rounded-full">{{ ativo.status }}</span>
+                </td>
+                <td class="p-4 text-gray-700">{{ ativo.usuario_responsavel or 'Em Estoque' }}</td>
+                <td class="p-4">
+                    <a href="{{ url_for('main.detalhes_ativo', id_ativo=ativo.id_ativo) }}" class="text-blue-600 hover:underline font-semibold">Ver Detalhes</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="p-4 text-center text-gray-500">
+                    {% if search_query %}
+                        Nenhum ativo encontrado para a busca "{{ search_query }}".
+                    {% else %}
+                        Nenhum ativo cadastrado ainda.
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

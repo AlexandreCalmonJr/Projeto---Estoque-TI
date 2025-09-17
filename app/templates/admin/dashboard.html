@@ -1,0 +1,44 @@
+{% extends 'admin/base_admin.html' %}
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Card Total de Ativos -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-gray-500">Total de Ativos</h3>
+        <p class="text-3xl font-bold">{{ stats.total_assets }}</p>
+    </div>
+    <!-- Card Total de Usuários -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-gray-500">Total de Usuários</h3>
+        <p class="text-3xl font-bold">{{ total_users }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <!-- Ativos por Base de Dados -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="font-bold mb-4">Ativos por Base de Dados</h3>
+        <ul>
+            {% for db in stats.assets_by_db %}
+            <li class="flex justify-between items-center py-2 border-b">
+                <span>{{ db.name }}</span>
+                <span class="font-bold">{{ db.count }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <!-- Ativos por Status -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="font-bold mb-4">Ativos por Status (Consolidado)</h3>
+        <ul>
+            {% for status, count in stats.assets_by_status.items() %}
+            <li class="flex justify-between items-center py-2 border-b">
+                <span>{{ status }}</span>
+                <span class="font-bold">{{ count }}</span>
+            </li>
+            {% else %}
+            <li>Nenhum ativo encontrado.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

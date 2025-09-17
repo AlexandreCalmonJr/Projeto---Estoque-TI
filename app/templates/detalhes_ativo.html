@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Coluna Principal: Informações e Ações -->
+    <div class="lg:col-span-2 space-y-8">
+        <!-- Card de Informações Principais -->
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Informações do Ativo</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-gray-700">
+                <div><strong>Patrimônio:</strong> <span class="text-gray-900 font-medium">{{ ativo.id_ativo }}</span></div>
+                <div><strong>Nº de Série:</strong> <span class="text-gray-900">{{ ativo.numero_serie }}</span></div>
+                <div><strong>Categoria:</strong> <span class="text-gray-900">{{ ativo.categoria }}</span></div>
+                <div><strong>Modelo:</strong> <span class="text-gray-900">{{ ativo.modelo }}</span></div>
+                <div><strong>Marca:</strong> <span class="text-gray-900">{{ ativo.marca }}</span></div>
+                <div><strong>Status:</strong> <span class="px-2 py-1 font-semibold leading-tight text-blue-800 bg-blue-100 rounded-full">{{ ativo.status }}</span></div>
+                <div><strong>Responsável:</strong> <span class="text-gray-900">{{ ativo.usuario_responsavel or 'N/A' }}</span></div>
+                <div><strong>Localização:</strong> <span class="text-gray-900">{{ ativo.localizacao or 'N/A' }}</span></div>
+                <div><strong>Data de Aquisição:</strong> <span class="text-gray-900">{{ ativo.data_aquisicao }}</span></div>
+                <div><strong>Fornecedor:</strong> <span class="text-gray-900">{{ ativo.fornecedor }}</span></div>
+                <div class="md:col-span-2"><strong>Nota Fiscal:</strong> <span class="text-gray-900">{{ ativo.nota_fiscal }}</span></div>
+            </div>
+        </div>
+        
+        <!-- Card de Especificações Técnicas -->
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Especificações Técnicas</h3>
+            {% if ativo.cpu or ativo.ram_gb or ativo.armazenamento_gb or ativo.sistema_operacional %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-gray-700">
+                <div><strong>Processador (CPU):</strong> <span class="text-gray-900">{{ ativo.cpu or 'Não informado' }}</span></div>
+                <div><strong>Memória RAM:</strong> <span class="text-gray-900">{{ (ativo.ram_gb ~ ' GB') if ativo.ram_gb else 'Não informado' }}</span></div>
+                <div><strong>Armazenamento:</strong> <span class="text-gray-900">{{ (ativo.armazenamento_gb ~ ' GB') if ativo.armazenamento_gb else 'Não informado' }}</span></div>
+                <div><strong>Sistema Operacional:</strong> <span class="text-gray-900">{{ ativo.sistema_operacional or 'Não informado' }}</span></div>
+            </div>
+            {% else %}
+            <p class="text-gray-500">Nenhuma especificação técnica cadastrada para este ativo.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Card do Histórico -->
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Histórico de Movimentações</h3>
+            <ul class="space-y-4">
+                {% for item in historico %}
+                <li class="border-l-4 border-blue-500 pl-4">
+                    <p class="font-semibold text-gray-800">{{ item.evento }}</p>
+                    <p class="text-sm text-gray-600">{{ item.detalhes }}</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ item.timestamp }}</p>
+                </li>
+                {% else %}
+                <li class="text-gray-500">Nenhum histórico encontrado.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Coluna Lateral: Ações -->
+    <div class="space-y-6">
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Ações Rápidas</h3>
+            <form action="{{ url_for('main.distribuir_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
+                <h4 class="font-semibold mb-2">Distribuir para Usuário</h4>
+                <input type="text" name="usuario_responsavel" placeholder="Nome do Responsável" class="w-full p-2 border rounded mb-2" required>
+                <input type="text" name="localizacao" placeholder="Departamento/Local" class="w-full p-2 border rounded mb-2" required>
+                <input type="text" name="numero_chamado" placeholder="Nº do Chamado" class="w-full p-2 border rounded mb-2" required>
+                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Distribuir e Gerar Termo</button>
+            </form>
+            <form action="{{ url_for('main.movimentar_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
+                <h4 class="font-semibold mb-2">Movimentar Ativo</h4>
+                 <select name="novo_status" class="w-full p-2 border rounded mb-2" required>
+                    <option value="Em Estoque">Devolver para Estoque</option>
+                    <option value="Em Manutenção">Enviar para Manutenção</option>
+                </select>
+                <input type="text" name="numero_chamado" placeholder="Nº do Chamado" class="w-full p-2 border rounded mb-2" required>
+                <button type="submit" class="w-full bg-yellow-500 text-white py-2 rounded hover:bg-yellow-600">Movimentar</button>
+            </form>
+            <form action="{{ url_for('main.baixar_ativo', id_ativo=ativo.id_ativo) }}" method="POST" onsubmit="return confirm('ATENÇÃO: Deseja realmente dar baixa neste ativo? Esta ação não pode ser desfeita.');">
+                <h4 class="font-semibold mb-2">Dar Baixa (Descartar)</h4>
+                <input type="text" name="numero_chamado" placeholder="Nº do Chamado de Baixa" class="w-full p-2 border rounded mb-2" required>
+                <button type="submit" class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">Dar Baixa do Ativo</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

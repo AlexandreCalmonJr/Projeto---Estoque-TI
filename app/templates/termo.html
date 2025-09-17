@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
+    <h3 class="text-2xl font-bold text-center mb-4">TERMO DE RESPONSABILIDADE DE ATIVOS DE TI</h3>
+    <p class="text-center text-gray-500 mb-6">Data de Emissão: {{ data_emissao }}</p>
+    
+    <p class="mb-4">Eu, <strong>{{ usuario }}</strong>, declaro ter recebido da empresa os equipamentos de TI listados abaixo, em perfeitas condições de uso e funcionamento. Comprometo-me a zelar pela sua guarda e conservação, utilizando-os exclusivamente para fins profissionais.</p>
+    <p class="mb-6">Estou ciente de que deverei comunicar imediatamente ao departamento de TI qualquer dano, defeito ou extravio dos equipamentos.</p>
+    
+    <h4 class="font-bold text-lg mb-4 border-b pb-2">ATIVOS ENTREGUES</h4>
+    
+    {% for ativo in ativos %}
+    <div class="mb-4 border p-4 rounded-lg">
+        <p><strong>ID do Ativo:</strong> <span class="font-mono">{{ ativo.id_ativo }}</span></p>
+        <p><strong>Tipo:</strong> {{ ativo.categoria }}</p>
+        <p><strong>Marca/Modelo:</strong> {{ ativo.marca }} {{ ativo.modelo }}</p>
+        <p><strong>Número de Série:</strong> {{ ativo.numero_serie }}</p>
+    </div>
+    {% endfor %}
+    
+    <div class="mt-16 text-center">
+        <div class="inline-block">
+            <div class="w-80 h-px bg-black"></div>
+            <p class="mt-2">{{ usuario }}</p>
+            <p class="text-sm">(Assinatura do Responsável)</p>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
