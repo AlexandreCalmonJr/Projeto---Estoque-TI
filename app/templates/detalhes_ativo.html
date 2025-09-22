@@ -1,9 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Coluna Principal: Informações e Ações -->
     <div class="lg:col-span-2 space-y-8">
-        <!-- Card de Informações Principais -->
         <div class="bg-white p-6 rounded-xl shadow-lg">
             <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Informações do Ativo</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-gray-700">
@@ -21,7 +19,6 @@
             </div>
         </div>
         
-        <!-- Card de Especificações Técnicas -->
         <div class="bg-white p-6 rounded-xl shadow-lg">
             <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Especificações Técnicas</h3>
             {% if ativo.cpu or ativo.ram_gb or ativo.armazenamento_gb or ativo.sistema_operacional %}
@@ -36,7 +33,6 @@
             {% endif %}
         </div>
         
-        <!-- Card do Histórico -->
         <div class="bg-white p-6 rounded-xl shadow-lg">
             <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Histórico de Movimentações</h3>
             <ul class="space-y-4">
@@ -53,29 +49,44 @@
         </div>
     </div>
 
-    <!-- Coluna Lateral: Ações -->
     <div class="space-y-6">
         <div class="bg-white p-6 rounded-xl shadow-lg">
             <h3 class="text-xl font-bold text-gray-800 mb-4">Ações Rápidas</h3>
+            
             <a href="{{ url_for('main.edit_ativo', id_ativo=ativo.id_ativo) }}" class="block w-full text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 mb-6 font-semibold">
                 Editar Informações do Ativo
             </a>
+
+            <div class="mb-6 border-b pb-6">
+                <h4 class="font-semibold mb-2">Gerar Documento</h4>
+                <div class="flex gap-2">
+                    <select id="doc-selector" class="w-full p-2 border rounded">
+                        <option value="Termo de Entrega de Ativos - modelo.docx">Termo de Entrega</option>
+                        <option value="Termo de Responsabilidade de Ativos - modelo.docx">Termo de Responsabilidade</option>
+                        <option value="Termo de Comodato - Notebook - modelo.docx">Termo de Comodato (Notebook)</option>
+                    </select>
+                    <button onclick="gerarDocumento()" class="bg-green-600 text-white px-4 rounded hover:bg-green-700">Gerar</button>
+                </div>
+            </div>
+
             <form action="{{ url_for('main.distribuir_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
                 <h4 class="font-semibold mb-2">Distribuir para Usuário</h4>
                 <input type="text" name="usuario_responsavel" placeholder="Nome do Responsável" class="w-full p-2 border rounded mb-2" required>
                 <input type="text" name="localizacao" placeholder="Departamento/Local" class="w-full p-2 border rounded mb-2" required>
                 <input type="text" name="numero_chamado" placeholder="Nº do Chamado" class="w-full p-2 border rounded mb-2" required>
-                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Distribuir e Gerar Termo</button>
+                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Distribuir Ativo</button>
             </form>
+            
             <form action="{{ url_for('main.movimentar_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
                 <h4 class="font-semibold mb-2">Movimentar Ativo</h4>
-                 <select name="novo_status" class="w-full p-2 border rounded mb-2" required>
+                <select name="novo_status" class="w-full p-2 border rounded mb-2" required>
                     <option value="Em Estoque">Devolver para Estoque</option>
                     <option value="Em Manutenção">Enviar para Manutenção</option>
                 </select>
                 <input type="text" name="numero_chamado" placeholder="Nº do Chamado" class="w-full p-2 border rounded mb-2" required>
                 <button type="submit" class="w-full bg-yellow-500 text-white py-2 rounded hover:bg-yellow-600">Movimentar</button>
             </form>
+            
             <form action="{{ url_for('main.baixar_ativo', id_ativo=ativo.id_ativo) }}" method="POST" onsubmit="return confirm('ATENÇÃO: Deseja realmente dar baixa neste ativo? Esta ação não pode ser desfeita.');">
                 <h4 class="font-semibold mb-2">Dar Baixa (Descartar)</h4>
                 <input type="text" name="numero_chamado" placeholder="Nº do Chamado de Baixa" class="w-full p-2 border rounded mb-2" required>
@@ -84,5 +95,13 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
+<script>
+function gerarDocumento() {
+    const select = document.getElementById('doc-selector');
+    const templateName = select.value;
+    const url = "{{ url_for('main.gerar_documento', id_ativo=ativo.id_ativo, template_name='PLACEHOLDER') }}".replace('PLACEHOLDER', templateName);
+    window.location.href = url;
+}
+</script>
+{% endblock %}

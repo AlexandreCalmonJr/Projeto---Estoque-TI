@@ -7,6 +7,9 @@ from flask_login import login_user, logout_user, current_user, login_required
 from . import main_bp
 import re
 import time
+from docx import Document
+from io import BytesIO
+from flask import send_file
 # COMENTÁRIO: Renomeamos o Blueprint para 'main' para seguir uma convenção comum.
 # As rotas serão chamadas com url_for('main.nome_da_funcao').
 manager = AssetManager()
@@ -558,3 +561,68 @@ def bulk_edit_ativos():
     ativos_para_editar = db_query(query)
     
     return render_template('bulk_edit.html', title="Editar Ativos em Lote", ativos=ativos_para_editar)
+
+@main_bp.route('/ativo/<id_ativo>/gerar_documento/<template_name>')
+@login_required
+def gerar_documento(id_ativo, template_name):
+    try:
+        # 1. Busca os dados do ativo no banco
+        query = "SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = :id_ativo"
+        ativo_info = db_query(query, {'id_ativo': id_ativo})[0]
+
+        # 2. Define o dicionário de placeholders
+        context = {
+            '{{usuario}}': ativo_info.get('usuario_responsavel', '____________________'),
+            '{{matricula}}': '____________________', # Adicionar este campo ao DB se necessário
+            '{{setor}}': ativo_info.get('localizacao', '____________________'),
+            '{{unidade}}': session.get('database_name', 'N/A'),
+            '{{localidade}}': ativo_info.get('localizacao', '____________________'),
+            '{{solicitante}}': current_user.username,
+            '{{patrimonio}}': ativo_info.get('id_ativo', ''),
+            '{{categoria}}': ativo_info.get('categoria', ''),
+            '{{fabricante}}': ativo_info.get('marca', ''),
+            '{{modelo}}': ativo_info.get('modelo', ''),
+            '{{serie}}': ativo_info.get('numero_serie', ''),
+            '{{chamado}}': '____________________', # Este campo precisaria vir do formulário
+            '{{data_hoje}}': datetime.now().strftime('%d de %B de %Y'),
+        }
+
+        # 3. Carrega o template .docx
+        template_path = os.path.join(current_app.root_path, 'document_templates', template_name)
+        document = Document(template_path)
+
+        # 4. Substitui os placeholders no documento
+        for paragraph in document.paragraphs:
+            for key, value in context.items():
+                if key in paragraph.text:
+                    # Usa 'run' para manter a formatação original
+                    for run in paragraph.runs:
+                        run.text = run.text.replace(key, str(value))
+        
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        for key, value in context.items():
+                            if key in paragraph.text:
+                                for run in paragraph.runs:
+                                    run.text = run.text.replace(key, str(value))
+
+        # 5. Salva o documento modificado em memória
+        file_stream = BytesIO()
+        document.save(file_stream)
+        file_stream.seek(0)
+
+        # 6. Envia o arquivo para download
+        return send_file(
+            file_stream,
+            as_attachment=True,
+            download_name=f"{template_name.replace('.docx', '')}-{id_ativo}.docx"
+        )
+
+    except FileNotFoundError:
+        flash(f'Erro: O template "{template_name}" não foi encontrado.', 'error')
+        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
+    except Exception as e:
+        flash(f'Ocorreu um erro ao gerar o documento: {e}', 'error')
+        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
