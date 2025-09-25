@@ -76,14 +76,14 @@ class AssetManager:
                 if quantidade < 1: quantidade = 1
             except (ValueError, TypeError):
                 quantidade = 1
-
+            
             # Loop para criar múltiplos ativos
             for i in range(quantidade):
-                # Lógica para patrimônio opcional
+                # Lógica para patrimônio (ID do Ativo)
                 id_ativo = form_data.get('id_ativo')
                 if id_ativo and id_ativo.strip():
                     id_ativo = id_ativo.strip()
-                    if quantidade > 1: # Se for mais de um item, anexa um sufixo para evitar duplicatas
+                    if quantidade > 1:
                         id_ativo = f"{id_ativo}-{i+1}"
                     
                     result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': id_ativo})
@@ -92,19 +92,30 @@ class AssetManager:
                 else:
                     tipo = form_data['tipo_ativo_sigla']
                     ano = datetime.now().year
-                    result = conn.execute(text("SELECT COUNT(*) FROM ativos WHERE id_ativo LIKE :like_pattern"), {'like_pattern': f"{tipo}-{ano}-%"})
-                    sequencial = result.scalar_one() + 1
-                    id_ativo = f"{tipo}-{ano}-{sequencial + i}" # Adiciona o índice do loop para garantir unicidade
-                
+                    prefixo = f"{tipo}-{ano}-"
+
+                    query_max = text("SELECT MAX(CAST(SUBSTR(id_ativo, LENGTH(:prefix) + 1) AS INTEGER)) FROM ativos WHERE id_ativo LIKE :like_pattern")
+                    max_seq_result = conn.execute(query_max, {'prefix': prefixo, 'like_pattern': f"{prefixo}%"}).scalar_one()
+                    
+                    novo_sequencial = (max_seq_result or 0) + 1 + i
+                    id_ativo = f"{prefixo}{novo_sequencial:03d}"
+
                 # Lógica para número de série
                 numero_serie = form_data.get('numero_serie', '').strip()
                 if not numero_serie:
                     timestamp = int(time.time() * 1000)
-                    numero_serie = f"PROV-{timestamp + i}" # Cria serial provisório
+                    numero_serie = f"PROV-{timestamp + i}"
                 elif quantidade > 1:
-                    numero_serie = f"{numero_serie}-{i+1}" # Anexa sufixo se for mais de um item
+                    numero_serie = f"{numero_serie}-{i+1}"
 
-                # Lógica de INSERT (o SQL e os params foram atualizados)
+                # --- NOVA VERIFICAÇÃO DE UNICIDADE DO SERIAL ---
+                # Antes de inserir, verifica se o número de série já existe.
+                result_sn = conn.execute(text("SELECT id FROM ativos WHERE numero_serie = :sn"), {'sn': numero_serie})
+                if result_sn.first():
+                    raise ValueError(f"O Número de Série '{numero_serie}' já está cadastrado.")
+                # --- FIM DA VERIFICAÇÃO ---
+
+                # Lógica de INSERT no banco de dados
                 sql = """
                     INSERT INTO ativos (id_ativo, numero_serie, marca, modelo_id, categoria_id, status, nota_fiscal, 
                                     fornecedor, data_aquisicao, localizacao, usuario_responsavel, destino,
@@ -129,7 +140,7 @@ class AssetManager:
                     'sistema_operacional': form_data.get('sistema_operacional')
                 }
                 conn.execute(text(sql), params)
-                self._log_event(id_ativo, "Criação", "Ativo cadastrado em lote e movido para o estoque.", conn)
+                self._log_event(id_ativo, "Criação", "Ativo cadastrado e movido para o estoque.", conn)
             
             conn.commit()
 

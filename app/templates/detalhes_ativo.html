@@ -71,10 +71,30 @@
 
             <form action="{{ url_for('main.distribuir_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
                 <h4 class="font-semibold mb-2">Distribuir para Usuário</h4>
-                <input type="text" name="usuario_responsavel" placeholder="Nome do Responsável" class="w-full p-2 border rounded mb-2" required>
-                <input type="text" name="localizacao" placeholder="Departamento/Local" class="w-full p-2 border rounded mb-2" required>
+                
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <input type="text" name="usuario_responsavel" placeholder="Nome do Responsável" class="w-full p-2 border rounded" required>
+                    <input type="email" name="email_usuario" placeholder="Email do Usuário" class="w-full p-2 border rounded">
+                </div>
+                
+                <input type="text" name="unidade" placeholder="Unidade (Ex: Hospital)" class="w-full p-2 border rounded mb-2" required>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <input type="text" name="localidade" placeholder="Localidade (Ex: Salvador)" class="w-full p-2 border rounded" required>
+                    <input type="text" name="setor" placeholder="Setor (Ex: Centro Cirúrgico)" class="w-full p-2 border rounded" required>
+                </div>
+                
                 <input type="text" name="numero_chamado" placeholder="Nº do Chamado" class="w-full p-2 border rounded mb-2" required>
-                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Distribuir Ativo</button>
+                
+                <div class="mb-4">
+                    <label for="template_name" class="block text-gray-700 text-sm font-bold mb-2">Gerar Documento</label>
+                    <select name="template_name" id="template_name" class="w-full p-2 border rounded">
+                        <option value="Termo de Entrega de Ativos - modelo.docx">Termo de Entrega</option>
+                        <option value="Termo de Responsabilidade de Ativos - modelo.docx">Termo de Responsabilidade</option>
+                        <option value="Termo de Comodato - Notebook - modelo.docx">Termo de Comodato (Notebook)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Distribuir e Gerar Documento</button>
             </form>
             
             <form action="{{ url_for('main.movimentar_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">

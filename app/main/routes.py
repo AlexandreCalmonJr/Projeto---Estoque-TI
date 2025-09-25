@@ -273,39 +273,33 @@ def relatorios():
 @main_bp.route('/ativo/<id_ativo>/distribuir', methods=['POST'])
 @login_required
 def distribuir_ativo(id_ativo):
+    form_data = request.form
+    # Os nomes dos campos agora correspondem ao seu significado real
+    localidade = form_data['localidade']
+    setor = form_data['setor']
+    # Mantemos uma coluna 'localizacao' no banco para simplicidade, combinando os dois
+    localizacao_final = f"{localidade} - {setor}"
+
     detalhes = {
-        'usuario_responsavel': request.form['usuario_responsavel'], 
-        'localizacao': request.form['localizacao']
+        'usuario_responsavel': form_data['usuario_responsavel'], 
+        'localizacao': localizacao_final
     }
-    chamado = request.form['numero_chamado']
+    chamado = form_data['numero_chamado']
     
     manager = AssetManager()
     manager.movimentar(id_ativo, 'Em Uso', chamado, detalhes)
     
-    flash('Ativo distribuído com sucesso! Gerando termo de responsabilidade...', 'success')
+    flash('Ativo distribuído com sucesso! Gerando documento para download...', 'success')
     
-    query = "SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = :id_ativo"
-    ativo_info_list = db_query(query, {'id_ativo': id_ativo})
-
-    if not ativo_info_list:
-        flash(f'Erro ao gerar termo: Ativo com ID {id_ativo} não foi encontrado após a movimentação.', 'error')
-        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
-        
-    ativo_info = ativo_info_list[0]
-    
-    # Prepara os dados para o novo template
-    termo_data = {
-        'solicitante': current_user.username,
-        'unidade': session.get('database_name', 'N/A'), # Pega o nome da base de dados da sessão
-        'usuario': detalhes['usuario_responsavel'],
-        'localidade': ativo_info.get('localizacao', 'N/A'),
-        'setor': detalhes['localizacao'],
-        'chamado': chamado,
-        'ativos': [ativo_info],
-        'data_emissao': datetime.now().strftime('%d/%m/%Y')
-    }
-    
-    return render_template('termo.html', title="Termo de Responsabilidade", **termo_data)
+    # Passa os dados do formulário para a próxima etapa
+    return redirect(url_for('main.gerar_documento', 
+                            id_ativo=id_ativo, 
+                            template_name=form_data['template_name'], 
+                            chamado=chamado,
+                            unidade=form_data['unidade'],
+                            email_usuario=form_data.get('email_usuario', ''),
+                            localidade=localidade, # Passa a localidade
+                            setor=setor)) # Passa o setorgerar_documento
 
 @main_bp.route('/ativo/<id_ativo>/movimentar', methods=['POST'])
 @login_required
@@ -566,36 +560,40 @@ def bulk_edit_ativos():
 @login_required
 def gerar_documento(id_ativo, template_name):
     try:
-        # 1. Busca os dados do ativo no banco
+        # Pega todos os dados da URL, agora com os nomes corretos
+        chamado = request.args.get('chamado', '____________________')
+        unidade_form = request.args.get('unidade')
+        email_usuario_form = request.args.get('email_usuario', '____________________')
+        localidade_form = request.args.get('localidade') # Pega a localidade do formulário
+        setor_form = request.args.get('setor') # Pega o setor do formulário
+
         query = "SELECT a.*, m.nome as modelo, c.nome as categoria FROM ativos a JOIN modelos m ON a.modelo_id = m.id JOIN categorias c ON a.categoria_id = c.id WHERE a.id_ativo = :id_ativo"
         ativo_info = db_query(query, {'id_ativo': id_ativo})[0]
 
-        # 2. Define o dicionário de placeholders
         context = {
-            '{{usuario}}': ativo_info.get('usuario_responsavel', '____________________'),
-            '{{matricula}}': '____________________', # Adicionar este campo ao DB se necessário
-            '{{setor}}': ativo_info.get('localizacao', '____________________'),
-            '{{unidade}}': session.get('database_name', 'N/A'),
-            '{{localidade}}': ativo_info.get('localizacao', '____________________'),
-            '{{solicitante}}': current_user.username,
+            '{{solicitante}}': ativo_info.get('usuario_responsavel', '____________________'),
+            '{{usuario}}': email_usuario_form,
+            '{{matricula}}': '____________________',
+            '{{setor}}': setor_form, # Usa o setor do formulário
+            '{{unidade}}': unidade_form,
+            '{{localidade}}': localidade_form, # Usa a localidade do formulário
             '{{patrimonio}}': ativo_info.get('id_ativo', ''),
             '{{categoria}}': ativo_info.get('categoria', ''),
             '{{fabricante}}': ativo_info.get('marca', ''),
             '{{modelo}}': ativo_info.get('modelo', ''),
             '{{serie}}': ativo_info.get('numero_serie', ''),
-            '{{chamado}}': '____________________', # Este campo precisaria vir do formulário
+            '{{chamado}}': chamado,
             '{{data_hoje}}': datetime.now().strftime('%d de %B de %Y'),
         }
 
-        # 3. Carrega o template .docx
+
+        # Carrega, preenche e envia o template .docx (lógica existente)
         template_path = os.path.join(current_app.root_path, 'document_templates', template_name)
         document = Document(template_path)
 
-        # 4. Substitui os placeholders no documento
         for paragraph in document.paragraphs:
             for key, value in context.items():
                 if key in paragraph.text:
-                    # Usa 'run' para manter a formatação original
                     for run in paragraph.runs:
                         run.text = run.text.replace(key, str(value))
         
@@ -607,22 +605,17 @@ def gerar_documento(id_ativo, template_name):
                             if key in paragraph.text:
                                 for run in paragraph.runs:
                                     run.text = run.text.replace(key, str(value))
-
-        # 5. Salva o documento modificado em memória
+        
         file_stream = BytesIO()
         document.save(file_stream)
         file_stream.seek(0)
 
-        # 6. Envia o arquivo para download
         return send_file(
             file_stream,
             as_attachment=True,
-            download_name=f"{template_name.replace('.docx', '')}-{id_ativo}.docx"
+            download_name=f"{template_name.replace(' - modelo.docx', '')}-{id_ativo}.docx"
         )
 
-    except FileNotFoundError:
-        flash(f'Erro: O template "{template_name}" não foi encontrado.', 'error')
-        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
     except Exception as e:
         flash(f'Ocorreu um erro ao gerar o documento: {e}', 'error')
         return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))

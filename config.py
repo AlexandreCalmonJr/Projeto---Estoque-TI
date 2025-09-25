@@ -32,6 +32,12 @@ class Config:
             'name': 'Minas Gerais (MG)',
             'url': os.environ.get('MINAS_DB_URL') or 'sqlite:///' + os.path.join(basedir, 'minas_assets.db')
         },
+        # ADICIONE O BLOCO ABAIXO
+        'sergipe': {
+            'name': 'Sergipe (SE)',
+            'url': os.environ.get('SERGIPE_DB_URL') or 'sqlite:///' + os.path.join(basedir, 'sergipe_assets.db')
+        },
+        # FIM DO NOVO BLOCO
         'geral': {
             'name': 'Geral (Consolidado)',
             'url': os.environ.get('GERAL_DB_URL') or 'sqlite:///' + os.path.join(basedir, 'geral_assets.db')
