@@ -2,6 +2,7 @@
 {% block content %}
 <div class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
     <form method="POST" id="form-ativo">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Coluna 1: Informações Principais -->
             <div>

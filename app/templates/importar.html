@@ -7,6 +7,7 @@
             Selecione um arquivo CSV ou Excel (.xlsx) para importar múltiplos ativos de uma vez.
         </p>
         <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="mb-4">
                 <label for="file" class="block text-gray-700 text-sm font-bold mb-2">Arquivo:</label>
                 <input type="file" name="file" id="file" required

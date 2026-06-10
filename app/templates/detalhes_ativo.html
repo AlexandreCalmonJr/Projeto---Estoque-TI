@@ -70,6 +70,7 @@
             </div>
 
             <form action="{{ url_for('main.distribuir_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <h4 class="font-semibold mb-2">Distribuir para Usuário</h4>
                 
                 <div class="grid grid-cols-2 gap-2 mb-2">
@@ -98,6 +99,7 @@
             </form>
             
             <form action="{{ url_for('main.movimentar_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <h4 class="font-semibold mb-2">Movimentar Ativo</h4>
                 <select name="novo_status" class="w-full p-2 border rounded mb-2" required>
                     <option value="Em Estoque">Devolver para Estoque</option>
@@ -108,6 +110,7 @@
             </form>
             
             <form action="{{ url_for('main.baixar_ativo', id_ativo=ativo.id_ativo) }}" method="POST" onsubmit="return confirm('ATENÇÃO: Deseja realmente dar baixa neste ativo? Esta ação não pode ser desfeita.');">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <h4 class="font-semibold mb-2">Dar Baixa (Descartar)</h4>
                 <input type="text" name="numero_chamado" placeholder="Nº do Chamado de Baixa" class="w-full p-2 border rounded mb-2" required>
                 <button type="submit" class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">Dar Baixa do Ativo</button>

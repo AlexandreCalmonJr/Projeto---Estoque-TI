@@ -2,6 +2,7 @@
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto">
     <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) if user else url_for('admin.create_user') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="mb-4">
             <label for="username" class="block text-gray-700 font-bold mb-2">Nome de Usuário</label>
             <input type="text" name="username" id="username" value="{{ user.username if user else '' }}" class="w-full border p-2 rounded" required>
@@ -30,6 +31,7 @@
     {% if user %}
     <div class="border-t mt-6 pt-4">
         <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja deletar este usuário? Esta ação não pode ser desfeita.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Deletar Usuário</button>
         </form>
     </div>

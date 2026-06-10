@@ -8,6 +8,7 @@
 
     {% if ativos %}
     <form method="POST">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <table class="w-full text-left">
             <thead class="bg-gray-100">
                 <tr>

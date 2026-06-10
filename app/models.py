@@ -1,16 +1,19 @@
-# app/models.py
+import re
+import time
+from datetime import datetime
 
 from flask import current_app, session
-from . import db
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from datetime import datetime
-from sqlalchemy import text, create_engine
+from sqlalchemy import create_engine, text
+from werkzeug.security import check_password_hash, generate_password_hash
 
-# --- Modelo SQLAlchemy (Tabela de Usuários) ---
+from . import db
+
+
 class User(UserMixin, db.Model):
     __bind_key__ = None
     __tablename__ = 'users'
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(256))
@@ -22,24 +25,20 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-# --- Funções de Acesso ao Banco de Dados (CORRIGIDAS) ---
 
 def get_asset_db_engine():
-    """Obtém o engine do SQLAlchemy para o banco de dados de ativos selecionado na sessão."""
     db_key = session.get('database_key')
-    if not db_key: 
+    if not db_key:
         raise ValueError("Nenhuma chave de banco de dados encontrada na sessão")
-    
-    # Usa a configuração da app para obter a URL do banco de dados
+
     db_info = current_app.config['ASSET_DATABASES'].get(db_key)
     if not db_info:
         raise ValueError(f"Configuração para banco '{db_key}' não encontrada")
-    
-    # Cria um engine do SQLAlchemy sob demanda
+
     return create_engine(db_info['url'])
 
+
 def db_query(query, params=None):
-    """Executa uma consulta SELECT usando SQLAlchemy e retorna uma lista de dicionários."""
     try:
         engine = get_asset_db_engine()
         with engine.connect() as connection:
@@ -49,172 +48,271 @@ def db_query(query, params=None):
         print(f"Erro na consulta: {e}")
         return []
 
+
 def db_execute(query, params=None):
-    """Executa uma instrução (INSERT, UPDATE, DELETE) usando SQLAlchemy."""
     try:
         engine = get_asset_db_engine()
-        with engine.connect() as connection:
+        with engine.begin() as connection:
             connection.execute(text(query), params or {})
-            connection.commit()
     except Exception as e:
         print(f"Erro na execução: {e}")
-        raise e
+        raise
 
-# --- Classe com a Lógica de Negócio ---
+
 class AssetManager:
+    ALLOWED_UPDATE_FIELDS = {
+        'status',
+        'usuario_responsavel',
+        'localizacao',
+        'destino',
+    }
+
     def _log_event(self, id_ativo, evento, detalhes, conn):
-        params = {'id_ativo': id_ativo, 'evento': evento, 'detalhes': detalhes}
-        conn.execute(text("INSERT INTO historico (id_ativo, evento, detalhes) VALUES (:id_ativo, :evento, :detalhes)"), params)
+        conn.execute(
+            text("INSERT INTO historico (id_ativo, evento, detalhes) VALUES (:id_ativo, :evento, :detalhes)"),
+            {'id_ativo': id_ativo, 'evento': evento, 'detalhes': detalhes},
+        )
+
+    def _get_text(self, form_data, key, default=''):
+        value = form_data.get(key, default)
+        if value is None:
+            return default
+        return str(value).strip()
+
+    def _require_text(self, form_data, key, label):
+        value = self._get_text(form_data, key)
+        if not value:
+            raise ValueError(f"O campo {label} é obrigatório.")
+        return value
+
+    def _get_positive_int(self, form_data, key, default=1):
+        try:
+            value = int(form_data.get(key, default))
+            return value if value > 0 else default
+        except (TypeError, ValueError):
+            return default
+
+    def _optional_int(self, form_data, key):
+        value = self._get_text(form_data, key)
+        if not value:
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"O campo {key} deve ser numérico.")
+
+    def _category_sigla(self, conn, categoria_id):
+        result = conn.execute(text("SELECT nome FROM categorias WHERE id = :id"), {'id': categoria_id}).first()
+        if not result:
+            raise ValueError("Categoria selecionada não foi encontrada.")
+        normalized = re.sub(r'[^A-Za-z0-9À-ÿ]', '', result._mapping['nome']).upper()
+        return (normalized[:2] or 'AT')
+
+    def _location_and_destino(self, form_data):
+        destino = self._get_text(form_data, 'destino')
+        localidade = self._get_text(form_data, 'localidade')
+        setor = self._get_text(form_data, 'setor')
+
+        if localidade and setor:
+            localizacao = f"{localidade} - {setor}"
+        elif localidade or setor:
+            localizacao = localidade or setor
+        else:
+            localizacao = destino or None
+
+        return localizacao, destino or setor or localizacao or 'Estoque TI'
+
+    def _next_generated_id(self, conn, prefixo, offset=0):
+        query_max = text("""
+            SELECT MAX(CAST(SUBSTR(id_ativo, LENGTH(:prefix) + 1) AS INTEGER))
+            FROM ativos
+            WHERE id_ativo LIKE :like_pattern
+        """)
+        max_seq = conn.execute(
+            query_max,
+            {'prefix': prefixo, 'like_pattern': f"{prefixo}%"},
+        ).scalar_one()
+        return f"{prefixo}{(max_seq or 0) + 1 + offset:03d}"
 
     def registrar_novo_ativo(self, form_data):
         engine = get_asset_db_engine()
-        with engine.connect() as conn:
-            
-            # Lógica de Quantidade
-            try:
-                quantidade = int(form_data.get('quantidade', 1))
-                if quantidade < 1: quantidade = 1
-            except (ValueError, TypeError):
-                quantidade = 1
-            
-            # Loop para criar múltiplos ativos
+        quantidade = self._get_positive_int(form_data, 'quantidade', 1)
+        categoria_id = self._require_text(form_data, 'categoria', 'categoria')
+        modelo_id = self._require_text(form_data, 'modelo', 'modelo')
+        marca = self._require_text(form_data, 'marca', 'marca')
+        base_id_ativo = self._get_text(form_data, 'id_ativo')
+        base_numero_serie = self._get_text(form_data, 'numero_serie')
+        localizacao, destino = self._location_and_destino(form_data)
+
+        with engine.begin() as conn:
+            sigla = self._category_sigla(conn, categoria_id)
+            prefixo = f"{sigla}-{datetime.now().year}-"
+
             for i in range(quantidade):
-                # Lógica para patrimônio (ID do Ativo)
-                id_ativo = form_data.get('id_ativo')
-                if id_ativo and id_ativo.strip():
-                    id_ativo = id_ativo.strip()
-                    if quantidade > 1:
-                        id_ativo = f"{id_ativo}-{i+1}"
-                    
-                    result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': id_ativo})
-                    if result.first():
-                        raise ValueError(f"O patrimônio '{id_ativo}' já existe.")
+                if base_id_ativo:
+                    id_ativo = f"{base_id_ativo}-{i + 1}" if quantidade > 1 else base_id_ativo
                 else:
-                    tipo = form_data['tipo_ativo_sigla']
-                    ano = datetime.now().year
-                    prefixo = f"{tipo}-{ano}-"
+                    id_ativo = self._next_generated_id(conn, prefixo, i)
 
-                    query_max = text("SELECT MAX(CAST(SUBSTR(id_ativo, LENGTH(:prefix) + 1) AS INTEGER)) FROM ativos WHERE id_ativo LIKE :like_pattern")
-                    max_seq_result = conn.execute(query_max, {'prefix': prefixo, 'like_pattern': f"{prefixo}%"}).scalar_one()
-                    
-                    novo_sequencial = (max_seq_result or 0) + 1 + i
-                    id_ativo = f"{prefixo}{novo_sequencial:03d}"
+                result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': id_ativo})
+                if result.first():
+                    raise ValueError(f"O patrimônio '{id_ativo}' já existe.")
 
-                # Lógica para número de série
-                numero_serie = form_data.get('numero_serie', '').strip()
-                if not numero_serie:
-                    timestamp = int(time.time() * 1000)
-                    numero_serie = f"PROV-{timestamp + i}"
-                elif quantidade > 1:
-                    numero_serie = f"{numero_serie}-{i+1}"
+                if base_numero_serie:
+                    numero_serie = f"{base_numero_serie}-{i + 1}" if quantidade > 1 else base_numero_serie
+                else:
+                    numero_serie = f"PROV-{int(time.time() * 1000) + i}"
 
-                # --- NOVA VERIFICAÇÃO DE UNICIDADE DO SERIAL ---
-                # Antes de inserir, verifica se o número de série já existe.
                 result_sn = conn.execute(text("SELECT id FROM ativos WHERE numero_serie = :sn"), {'sn': numero_serie})
                 if result_sn.first():
                     raise ValueError(f"O Número de Série '{numero_serie}' já está cadastrado.")
-                # --- FIM DA VERIFICAÇÃO ---
 
-                # Lógica de INSERT no banco de dados
                 sql = """
-                    INSERT INTO ativos (id_ativo, numero_serie, marca, modelo_id, categoria_id, status, nota_fiscal, 
-                                    fornecedor, data_aquisicao, localizacao, usuario_responsavel, destino,
-                                    cpu, ram_gb, armazenamento_gb, sistema_operacional)
-                    VALUES (:id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id, 'Em Estoque', :nota_fiscal, 
-                            :fornecedor, :data_aquisicao, :destino, NULL, :destino,
-                            :cpu, :ram_gb, :armazenamento_gb, :sistema_operacional)
+                    INSERT INTO ativos (
+                        id_ativo, numero_serie, marca, modelo_id, categoria_id, status,
+                        nota_fiscal, fornecedor, data_aquisicao, localizacao,
+                        usuario_responsavel, destino, cpu, ram_gb, armazenamento_gb,
+                        sistema_operacional
+                    )
+                    VALUES (
+                        :id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id,
+                        'Em Estoque', :nota_fiscal, :fornecedor, :data_aquisicao,
+                        :localizacao, NULL, :destino, :cpu, :ram_gb,
+                        :armazenamento_gb, :sistema_operacional
+                    )
                 """
                 params = {
-                    'id_ativo': id_ativo, 
+                    'id_ativo': id_ativo,
                     'numero_serie': numero_serie,
-                    'marca': form_data['marca'], 
-                    'modelo_id': form_data['modelo'], 
-                    'categoria_id': form_data['categoria'], 
-                    'nota_fiscal': form_data.get('nota_fiscal'),
-                    'fornecedor': form_data.get('fornecedor'), 
-                    'data_aquisicao': form_data.get('data_aquisicao') or None,
-                    'destino': form_data.get('destino'),
-                    'cpu': form_data.get('cpu'), 
-                    'ram_gb': form_data.get('ram_gb') or None,
-                    'armazenamento_gb': form_data.get('armazenamento_gb') or None, 
-                    'sistema_operacional': form_data.get('sistema_operacional')
+                    'marca': marca,
+                    'modelo_id': modelo_id,
+                    'categoria_id': categoria_id,
+                    'nota_fiscal': self._get_text(form_data, 'nota_fiscal') or None,
+                    'fornecedor': self._get_text(form_data, 'fornecedor') or None,
+                    'data_aquisicao': self._get_text(form_data, 'data_aquisicao') or None,
+                    'localizacao': localizacao,
+                    'destino': destino,
+                    'cpu': self._get_text(form_data, 'cpu') or None,
+                    'ram_gb': self._optional_int(form_data, 'ram_gb'),
+                    'armazenamento_gb': self._optional_int(form_data, 'armazenamento_gb'),
+                    'sistema_operacional': self._get_text(form_data, 'sistema_operacional') or None,
                 }
                 conn.execute(text(sql), params)
                 self._log_event(id_ativo, "Criação", "Ativo cadastrado e movido para o estoque.", conn)
-            
-            conn.commit()
 
-
-    # ADICIONE ESTA NOVA FUNÇÃO DENTRO DA CLASSE AssetManager
     def atualizar_lote_ativos(self, form_data):
         engine = get_asset_db_engine()
         updates = {}
-        # Organiza os dados do formulário em um dicionário por ID de banco de dados
+
         for key, value in form_data.items():
             if key.startswith('db_id_'):
                 idx = key.split('_')[-1]
                 db_id = int(value)
-                if db_id not in updates:
-                    updates[db_id] = {}
-                updates[db_id]['id_ativo'] = form_data.get(f'id_ativo_{idx}')
-                updates[db_id]['numero_serie'] = form_data.get(f'numero_serie_{idx}')
+                updates[db_id] = {
+                    'id_ativo': self._get_text(form_data, f'id_ativo_{idx}'),
+                    'numero_serie': self._get_text(form_data, f'numero_serie_{idx}'),
+                }
 
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             for db_id, data in updates.items():
                 novo_id_ativo = data['id_ativo']
                 novo_numero_serie = data['numero_serie']
-                
-                # Validações de unicidade
-                result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id AND id != :db_id"), {'id': novo_id_ativo, 'db_id': db_id})
+                if not novo_id_ativo or not novo_numero_serie:
+                    raise ValueError("Patrimônio e número de série são obrigatórios.")
+
+                current = conn.execute(
+                    text("SELECT id_ativo, numero_serie FROM ativos WHERE id = :db_id"),
+                    {'db_id': db_id},
+                ).first()
+                if not current:
+                    raise ValueError("Ativo para edição em lote não foi encontrado.")
+                current = current._mapping
+
+                result = conn.execute(
+                    text("SELECT id FROM ativos WHERE id_ativo = :id AND id != :db_id"),
+                    {'id': novo_id_ativo, 'db_id': db_id},
+                )
                 if result.first():
                     raise ValueError(f"Patrimônio '{novo_id_ativo}' já existe.")
-                
-                result = conn.execute(text("SELECT id FROM ativos WHERE numero_serie = :sn AND id != :db_id"), {'sn': novo_numero_serie, 'db_id': db_id})
+
+                result = conn.execute(
+                    text("SELECT id FROM ativos WHERE numero_serie = :sn AND id != :db_id"),
+                    {'sn': novo_numero_serie, 'db_id': db_id},
+                )
                 if result.first():
                     raise ValueError(f"Número de Série '{novo_numero_serie}' já existe.")
 
-                # Atualiza o ativo
-                sql = "UPDATE ativos SET id_ativo = :id_ativo, numero_serie = :numero_serie WHERE id = :db_id"
-                conn.execute(text(sql), {'id_ativo': novo_id_ativo, 'numero_serie': novo_numero_serie, 'db_id': db_id})
-                self._log_event(novo_id_ativo, "Atualização em Lote", f"Patrimônio e/ou Serial atualizados para valores definitivos.", conn)
-
-            conn.commit()
+                conn.execute(
+                    text("UPDATE ativos SET id_ativo = :id_ativo, numero_serie = :numero_serie WHERE id = :db_id"),
+                    {'id_ativo': novo_id_ativo, 'numero_serie': novo_numero_serie, 'db_id': db_id},
+                )
+                if current['id_ativo'] != novo_id_ativo:
+                    conn.execute(
+                        text("UPDATE historico SET id_ativo = :novo WHERE id_ativo = :antigo"),
+                        {'novo': novo_id_ativo, 'antigo': current['id_ativo']},
+                    )
+                self._log_event(
+                    novo_id_ativo,
+                    "Atualização em Lote",
+                    "Patrimônio e/ou Serial atualizados para valores definitivos.",
+                    conn,
+                )
 
     def movimentar(self, id_ativo, novo_status, chamado, detalhes=None):
+        if novo_status not in current_app.config['ASSET_STATUSES']:
+            raise ValueError("Status inválido para movimentação.")
+
         engine = get_asset_db_engine()
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             update_fields = {'status': novo_status}
             if detalhes:
+                invalid_fields = set(detalhes) - self.ALLOWED_UPDATE_FIELDS
+                if invalid_fields:
+                    raise ValueError(f"Campos de atualização inválidos: {', '.join(sorted(invalid_fields))}")
                 update_fields.update(detalhes)
-            
+
             set_clause = ", ".join([f"{key} = :{key}" for key in update_fields.keys()])
             params = {**update_fields, 'id_ativo': id_ativo}
-            
-            conn.execute(text(f"UPDATE ativos SET {set_clause} WHERE id_ativo = :id_ativo"), params)
-            
+            result = conn.execute(text(f"UPDATE ativos SET {set_clause} WHERE id_ativo = :id_ativo"), params)
+            if result.rowcount == 0:
+                raise ValueError("Ativo não encontrado.")
+
             log_detalhes = f"Status alterado para '{novo_status}'. Chamado: {chamado}."
             if 'usuario_responsavel' in update_fields:
                 log_detalhes += f" Novo responsável: {update_fields['usuario_responsavel']}."
-            
             self._log_event(id_ativo, "Movimentação", log_detalhes, conn)
-            conn.commit()
 
     def baixar(self, id_ativo, chamado):
         self.movimentar(id_ativo, 'Descartado', chamado)
-        
+
     def atualizar_ativo(self, id_ativo_original, form_data):
         engine = get_asset_db_engine()
-        with engine.connect() as conn:
-            # Pega o novo ID do patrimônio do formulário
-            novo_id_ativo = form_data.get('id_ativo').strip()
+        novo_id_ativo = self._require_text(form_data, 'id_ativo', 'patrimônio')
+        novo_numero_serie = self._require_text(form_data, 'numero_serie', 'número de série')
 
-            # Se o patrimônio foi alterado, verifica se o novo já não está em uso
-            if id_ativo_original != novo_id_ativo:
-                result = conn.execute(text("SELECT id FROM ativos WHERE id_ativo = :id_ativo"), {'id_ativo': novo_id_ativo})
-                if result.first():
-                    raise ValueError(f"O novo patrimônio '{novo_id_ativo}' já pertence a outro ativo.")
-            
-            # Constrói a query de atualização
+        with engine.begin() as conn:
+            current = conn.execute(
+                text("SELECT id, id_ativo, numero_serie FROM ativos WHERE id_ativo = :id_ativo"),
+                {'id_ativo': id_ativo_original},
+            ).first()
+            if not current:
+                raise ValueError("Ativo não encontrado.")
+            current = current._mapping
+
+            result = conn.execute(
+                text("SELECT id FROM ativos WHERE id_ativo = :id_ativo AND id != :db_id"),
+                {'id_ativo': novo_id_ativo, 'db_id': current['id']},
+            )
+            if result.first():
+                raise ValueError(f"O novo patrimônio '{novo_id_ativo}' já pertence a outro ativo.")
+
+            result = conn.execute(
+                text("SELECT id FROM ativos WHERE numero_serie = :sn AND id != :db_id"),
+                {'sn': novo_numero_serie, 'db_id': current['id']},
+            )
+            if result.first():
+                raise ValueError(f"O Número de Série '{novo_numero_serie}' já pertence a outro ativo.")
+
             sql = """
                 UPDATE ativos SET
                     id_ativo = :id_ativo,
@@ -226,37 +324,37 @@ class AssetManager:
                     fornecedor = :fornecedor,
                     data_aquisicao = :data_aquisicao,
                     destino = :destino
-                WHERE id_ativo = :id_ativo_original
+                WHERE id = :db_id
             """
             params = {
                 'id_ativo': novo_id_ativo,
-                'numero_serie': form_data['numero_serie'],
-                'marca': form_data['marca'],
-                'modelo_id': form_data['modelo'],
-                'categoria_id': form_data['categoria'],
-                'nota_fiscal': form_data.get('nota_fiscal'),
-                'fornecedor': form_data.get('fornecedor'),
-                'data_aquisicao': form_data.get('data_aquisicao') or None,
-                'destino': form_data.get('destino'),
-                'id_ativo_original': id_ativo_original
+                'numero_serie': novo_numero_serie,
+                'marca': self._require_text(form_data, 'marca', 'marca'),
+                'modelo_id': self._require_text(form_data, 'modelo', 'modelo'),
+                'categoria_id': self._require_text(form_data, 'categoria', 'categoria'),
+                'nota_fiscal': self._get_text(form_data, 'nota_fiscal') or None,
+                'fornecedor': self._get_text(form_data, 'fornecedor') or None,
+                'data_aquisicao': self._get_text(form_data, 'data_aquisicao') or None,
+                'destino': self._get_text(form_data, 'destino') or None,
+                'db_id': current['id'],
             }
             conn.execute(text(sql), params)
-            
-            # Registra o evento no histórico se o patrimônio foi alterado
-            if id_ativo_original != novo_id_ativo:
-                detalhes = f"Patrimônio alterado de '{id_ativo_original}' para '{novo_id_ativo}'."
-                self._log_event(novo_id_ativo, "Atualização", detalhes, conn)
 
-            conn.commit()
-            return novo_id_ativo # Retorna o novo ID para o redirecionamento    
+            if id_ativo_original != novo_id_ativo:
+                conn.execute(
+                    text("UPDATE historico SET id_ativo = :novo WHERE id_ativo = :antigo"),
+                    {'novo': novo_id_ativo, 'antigo': id_ativo_original},
+                )
+                detalhes = f"Patrimônio alterado de '{id_ativo_original}' para '{novo_id_ativo}'."
+            else:
+                detalhes = "Dados cadastrais atualizados."
+            self._log_event(novo_id_ativo, "Atualização", detalhes, conn)
+
+            return novo_id_ativo
+
 
 def get_engine_by_key(key):
-    """
-    Obtém o engine do SQLAlchemy para uma chave de banco de dados específica.
-    Usado pelo painel de admin para iterar sobre todos os bancos.
-    """
     db_info = current_app.config['ASSET_DATABASES'].get(key)
     if not db_info:
         raise ValueError(f"Configuração para banco '{key}' não encontrada")
-    
     return create_engine(db_info['url'])
