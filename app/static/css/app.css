@@ -42,3 +42,43 @@ button:focus, input:focus, select:focus, textarea:focus {
         display: none !important;
     }
 }
+
+/* Print Label Styling */
+#print-label-target {
+    display: none; /* Hidden on screen */
+}
+
+@media print {
+    /* Hide all page content during label printing */
+    body * {
+        visibility: hidden;
+    }
+    
+    /* Only display the print label target */
+    #print-label-target, #print-label-target * {
+        visibility: visible;
+    }
+    
+    #print-label-target {
+        display: flex !important;
+        flex-direction: column;
+        justify-content: space-between;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm;
+        height: 40mm;
+        margin: 0;
+        padding: 2.5mm;
+        box-sizing: border-box;
+        border: 2px solid #000;
+        background: #fff;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    @page {
+        size: 80mm 40mm;
+        margin: 0;
+    }
+}
+

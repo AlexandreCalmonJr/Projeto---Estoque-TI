@@ -50,7 +50,32 @@
     </div>
 
     <div class="space-y-6">
-        <div class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Card de QR Code e Etiqueta -->
+        <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 no-print">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                QR Code de Patrimônio
+            </h3>
+            <div class="flex flex-col items-center justify-center space-y-4">
+                <!-- Container onde o QR Code será renderizado na tela -->
+                <div id="qrcode-preview" class="bg-white p-3 rounded-lg border border-gray-200 shadow-inner"></div>
+                
+                <p class="text-xs text-gray-500 text-center">
+                    Este QR Code aponta para a página de detalhes deste ativo para inventário rápido.
+                </p>
+                
+                <button onclick="window.print()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Imprimir Etiqueta
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg no-print">
             <h3 class="text-xl font-bold text-gray-800 mb-4">Ações Rápidas</h3>
             
             <a href="{{ url_for('main.edit_ativo', id_ativo=ativo.id_ativo) }}" class="block w-full text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 mb-6 font-semibold">
@@ -119,6 +144,38 @@
     </div>
 </div>
 
+<!-- Layout oculto otimizado para a impressora de etiquetas (80mm x 40mm) -->
+<div id="print-label-target">
+    <!-- Linha de Cabeçalho da Etiqueta -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000; padding-bottom: 1mm; margin-bottom: 1.5mm;">
+        <span style="font-size: 8px; font-weight: 800; letter-spacing: 0.5px; color: #000;">CONTROLE DE PATRIMÔNIO</span>
+        <span style="font-size: 7px; color: #555;">Estoque TI</span>
+    </div>
+    
+    <!-- Corpo da Etiqueta: QR Code à esquerda, Informações à direita -->
+    <div style="display: flex; flex-grow: 1; align-items: center; gap: 3mm;">
+        <!-- Container do QR Code para impressão -->
+        <div id="qrcode-print" style="flex-shrink: 0; background: #fff;"></div>
+        
+        <!-- Detalhes do ativo -->
+        <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0;">
+            <div style="font-size: 13px; font-weight: 900; color: #000; line-height: 1.1; margin-bottom: 0.5mm; word-break: break-all;">
+                {{ ativo.id_ativo }}
+            </div>
+            <div style="font-size: 8px; font-weight: 700; color: #333; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {{ ativo.categoria }}
+            </div>
+            <div style="font-size: 7px; color: #555; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {{ ativo.modelo }}
+            </div>
+            <div style="font-size: 6px; color: #777; font-family: monospace; line-height: 1.2; margin-top: 1mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                S/N: {{ ativo.numero_serie }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 function gerarDocumento() {
     const select = document.getElementById('doc-selector');
@@ -126,5 +183,30 @@ function gerarDocumento() {
     const url = "{{ url_for('main.gerar_documento', id_ativo=ativo.id_ativo, template_name='PLACEHOLDER') }}".replace('PLACEHOLDER', templateName);
     window.location.href = url;
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Obter a URL completa para este ativo
+    const assetUrl = "{{ url_for('main.detalhes_ativo', id_ativo=ativo.id_ativo, _external=True) }}";
+    
+    // 1. Gerar QR Code para pré-visualização em tela (128x128)
+    new QRCode(document.getElementById("qrcode-preview"), {
+        text: assetUrl,
+        width: 128,
+        height: 128,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+    
+    // 2. Gerar QR Code para impressão da etiqueta (80x80px para caber na etiqueta de 80x40mm)
+    new QRCode(document.getElementById("qrcode-print"), {
+        text: assetUrl,
+        width: 80,
+        height: 80,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+});
 </script>
 {% endblock %}
