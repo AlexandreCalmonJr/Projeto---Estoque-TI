@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto mb-8">
+    <a href="{{ url_for('main.almoxarifado') }}" class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800 transition mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Voltar para o Almoxarifado
+    </a>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Bloco de Importação -->
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col justify-between">
+            <div>
+                <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Importar Consumíveis</h3>
+                <p class="text-gray-600 text-sm mb-6">
+                    Selecione uma planilha do Excel (.xlsx) ou arquivo CSV para cadastrar novos itens ou atualizar o estoque de itens existentes.
+                </p>
+                <form method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-blue-500 transition text-center cursor-pointer relative bg-gray-50">
+                        <input type="file" name="file" id="file" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                        <div class="space-y-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V4a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                            </svg>
+                            <p id="file-name-text" class="text-sm font-semibold text-gray-700">Selecione ou arraste o arquivo aqui</p>
+                            <p class="text-xs text-gray-400">Formatos aceitos: .CSV, .XLSX</p>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition duration-150">
+                        Iniciar Importação
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Bloco de Instruções -->
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Estrutura das Colunas</h3>
+            <p class="text-sm text-gray-600 mb-4">A planilha deve conter um cabeçalho e seguir esta estrutura de colunas:</p>
+            <div class="overflow-hidden border border-gray-200 rounded-lg mb-4 text-xs">
+                <table class="min-w-full divide-y divide-gray-200 text-left bg-gray-50">
+                    <thead class="bg-gray-100 font-semibold text-gray-700">
+                        <tr>
+                            <th class="px-4 py-2">Coluna</th>
+                            <th class="px-4 py-2">Tipo</th>
+                            <th class="px-4 py-2">Requisito</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 text-gray-600">
+                        <tr>
+                            <td class="px-4 py-2 font-mono font-bold text-blue-600">nome</td>
+                            <td class="px-4 py-2">Texto</td>
+                            <td class="px-4 py-2"><span class="text-red-600 font-semibold">Obrigatório</span></td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-2 font-mono">quantidade</td>
+                            <td class="px-4 py-2">Inteiro</td>
+                            <td class="px-4 py-2">Opcional (Padrão: 0)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-2 font-mono">unidade_medida</td>
+                            <td class="px-4 py-2">Texto</td>
+                            <td class="px-4 py-2">Opcional (Padrão: unidade)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-2 font-mono">estoque_minimo</td>
+                            <td class="px-4 py-2">Inteiro</td>
+                            <td class="px-4 py-2">Opcional (Padrão: 0)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-2 font-mono">localizacao</td>
+                            <td class="px-4 py-2">Texto</td>
+                            <td class="px-4 py-2">Opcional</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-2 font-mono">fornecedor</td>
+                            <td class="px-4 py-2">Texto</td>
+                            <td class="px-4 py-2">Opcional</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-2 font-mono">observacoes</td>
+                            <td class="px-4 py-2">Texto</td>
+                            <td class="px-4 py-2">Opcional</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-xs text-blue-800 space-y-1">
+                <p class="font-bold">Aviso sobre Duplicidade:</p>
+                <p>Se o nome do item já estiver cadastrado, a quantidade fornecida na planilha será <strong>somada</strong> ao estoque existente.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('file').addEventListener('change', function(e) {
+    const fileName = e.target.files[0] ? e.target.files[0].name : "Selecione ou arraste o arquivo aqui";
+    document.getElementById('file-name-text').innerText = fileName;
+});
+</script>
+{% endblock %}

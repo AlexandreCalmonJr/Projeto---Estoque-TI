@@ -12,6 +12,12 @@
                 </svg>
                 Cadastrar Item
             </a>
+            <a href="{{ url_for('main.almoxarifado_importar') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-5 rounded-lg border border-gray-300 transition duration-150 ease-in-out flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Importar Planilha
+            </a>
             <a href="{{ url_for('main.almoxarifado_historico') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-5 rounded-lg border border-gray-300 transition duration-150 ease-in-out flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -96,7 +102,9 @@
                 <tr class="hover:bg-gray-50 transition duration-150 {% if alerta %}bg-red-50/50 hover:bg-red-50{% endif %}">
                     <td class="px-6 py-4 font-semibold text-gray-800">
                         <div class="flex items-center gap-2">
-                            {{ item.nome }}
+                            <a href="{{ url_for('main.almoxarifado_item_detalhes', item_id=item.id) }}" class="text-blue-600 hover:underline hover:text-blue-800">
+                                {{ item.nome }}
+                            </a>
                             {% if alerta %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">
                                 Estoque Baixo

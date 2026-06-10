@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto mb-8">
+    <a href="{{ url_for('main.almoxarifado_item_detalhes', item_id=item.id) }}" class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800 transition mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Voltar para Detalhes
+    </a>
+
+    <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+        <div class="border-b pb-4 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Editar Item: {{ item.nome }}</h1>
+            <p class="text-sm text-gray-500 mt-1">Atualize as informações cadastrais do consumível.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('main.almoxarifado_item_editar', item_id=item.id) }}" class="space-y-6">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Nome do Consumível -->
+                <div class="md:col-span-2">
+                    <label for="nome" class="block text-sm font-bold text-gray-700 mb-2">Nome do Consumível *</label>
+                    <input type="text" name="nome" id="nome" value="{{ item.nome }}" required placeholder="Ex: Toner HP LaserJet 105A" class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                </div>
+
+                <!-- Unidade de Medida -->
+                <div>
+                    <label for="unidade_medida" class="block text-sm font-bold text-gray-700 mb-2">Unidade de Medida *</label>
+                    <select name="unidade_medida" id="unidade_medida" class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                        <option value="unidade" {% if item.unidade_medida == 'unidade' %}selected{% endif %}>Unidade</option>
+                        <option value="pacote" {% if item.unidade_medida == 'pacote' %}selected{% endif %}>Pacote</option>
+                        <option value="caixa" {% if item.unidade_medida == 'caixa' %}selected{% endif %}>Caixa</option>
+                        <option value="metro" {% if item.unidade_medida == 'metro' %}selected{% endif %}>Metro</option>
+                        <option value="litro" {% if item.unidade_medida == 'litro' %}selected{% endif %}>Litro</option>
+                        <option value="rolo" {% if item.unidade_medida == 'rolo' %}selected{% endif %}>Rolo</option>
+                    </select>
+                </div>
+
+                <!-- Estoque Mínimo -->
+                <div>
+                    <label for="estoque_minimo" class="block text-sm font-bold text-gray-700 mb-2">Estoque Mínimo (Alerta) *</label>
+                    <input type="number" name="estoque_minimo" id="estoque_minimo" min="0" value="{{ item.estoque_minimo }}" required class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                    <p class="text-xs text-gray-500 mt-1">O sistema exibirá um alerta quando o estoque for menor ou igual a este valor.</p>
+                </div>
+
+                <!-- Localização no Almoxarifado -->
+                <div>
+                    <label for="localizacao" class="block text-sm font-bold text-gray-700 mb-2">Localização Física</label>
+                    <input type="text" name="localizacao" id="localizacao" value="{{ item.localizacao or '' }}" placeholder="Ex: Armário A, Prateleira 2" class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                </div>
+
+                <!-- Fornecedor Preferencial -->
+                <div class="md:col-span-2">
+                    <label for="fornecedor" class="block text-sm font-bold text-gray-700 mb-2">Fornecedor Preferencial</label>
+                    <input type="text" name="fornecedor" id="fornecedor" value="{{ item.fornecedor or '' }}" placeholder="Ex: Kalunga / Distribuidor HP" class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                </div>
+
+                <!-- Observações -->
+                <div class="md:col-span-2">
+                    <label for="observacoes" class="block text-sm font-bold text-gray-700 mb-2">Observações / Detalhes</label>
+                    <textarea name="observacoes" id="observacoes" rows="4" placeholder="Insira quaisquer especificações, modelos compatíveis ou informações adicionais importantes..." class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none resize-none">{{ item.observacoes or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <a href="{{ url_for('main.almoxarifado_item_detalhes', item_id=item.id) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-6 rounded-lg border border-gray-300 transition text-center">
+                    Cancelar
+                </a>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition duration-150">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

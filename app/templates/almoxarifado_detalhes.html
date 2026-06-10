@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto mb-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <a href="{{ url_for('main.almoxarifado') }}" class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800 transition mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Voltar para o Almoxarifado
+            </a>
+            <h1 class="text-3xl font-extrabold text-gray-800">{{ item.nome }}</h1>
+            <p class="text-sm text-gray-500 mt-1">Detalhes e histórico de movimentação do consumível.</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url_for('main.almoxarifado_item_editar', item_id=item.id) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-lg border border-gray-300 transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Editar Cadastro
+            </a>
+            <form method="POST" action="{{ url_for('main.almoxarifado_item_excluir', item_id=item.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir este item e todo o histórico dele? Essa ação não pode ser desfeita.');">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-700 font-bold py-2.5 px-4 rounded-lg border border-red-200 transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Excluir Item
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- KPIs do Item -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Estoque Atual -->
+        <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100 flex items-center">
+            <div class="bg-blue-100 text-blue-600 rounded-full p-3 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Estoque Atual</p>
+                <p class="text-2xl font-black text-gray-800 mt-1">
+                    {{ item.quantidade }} <span class="text-sm font-normal text-gray-500">{{ item.unidade_medida }}s</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Mínimo de Segurança -->
+        <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100 flex items-center">
+            <div class="bg-red-100 text-red-600 rounded-full p-3 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Mínimo de Segurança</p>
+                <p class="text-2xl font-black text-gray-800 mt-1">
+                    {{ item.estoque_minimo }} <span class="text-sm font-normal text-gray-500">{{ item.unidade_medida }}s</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Total de Operações -->
+        <div class="bg-white p-5 rounded-xl shadow-md border border-gray-100 flex items-center">
+            <div class="bg-green-100 text-green-600 rounded-full p-3 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Operações Registradas</p>
+                <p class="text-2xl font-black text-gray-800 mt-1">
+                    {{ total_operacoes }} <span class="text-sm font-normal text-gray-500">movimentações</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Informações de Cadastro e Ajuste Rápido -->
+        <div class="space-y-6">
+            <!-- Cadastro -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 border-b pb-3 mb-4">Informações do Item</h3>
+                <div class="space-y-3 text-sm text-gray-700">
+                    <div><strong>Localização:</strong> <span class="text-gray-900">{{ item.localizacao or 'Não informado' }}</span></div>
+                    <div><strong>Fornecedor:</strong> <span class="text-gray-900">{{ item.fornecedor or 'Não informado' }}</span></div>
+                    <div><strong>Unidade de Medida:</strong> <span class="text-gray-900 capitalize">{{ item.unidade_medida }}</span></div>
+                    {% if item.quantidade <= item.estoque_minimo %}
+                    <div class="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 mt-2 font-semibold flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Abaixo do estoque mínimo!
+                    </div>
+                    {% endif %}
+                    <div class="pt-2">
+                        <strong>Observações:</strong>
+                        <p class="mt-1 text-xs text-gray-600 bg-gray-50 p-2.5 rounded border border-gray-200 italic font-mono whitespace-pre-wrap">{{ item.observacoes or 'Nenhuma observação.' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ajuste Rápido -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 border-b pb-3 mb-4">Ajustar Estoque</h3>
+                <form method="POST" action="{{ url_for('main.almoxarifado_movimentar', item_id=item.id) }}" class="space-y-4">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Operação</label>
+                        <select name="tipo_movimentacao" required class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                            <option value="Entrada">Entrada (Adicionar estoque)</option>
+                            <option value="Saída">Saída (Retirar estoque)</option>
+                            <option value="Ajuste">Ajuste (Sobrescrever valor)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Quantidade ({{ item.unidade_medida }}s)</label>
+                        <input type="number" name="quantidade" min="1" value="1" required class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nº do Chamado (Opcional)</label>
+                        <input type="text" name="numero_chamado" placeholder="ex: 10452" class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Detalhes / Justificativa</label>
+                        <textarea name="detalhes" rows="3" placeholder="Insira o motivo da movimentação..." class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none resize-none"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-md transition">
+                        Confirmar Movimentação
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabela de Histórico Filtrada -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md border border-gray-100 overflow-hidden">
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-3 mb-4">Histórico de Movimentações</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-left text-xs">
+                    <thead class="bg-gray-50 font-semibold text-gray-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3">Data</th>
+                            <th class="px-4 py-3">Operação</th>
+                            <th class="px-4 py-3">Qtd.</th>
+                            <th class="px-4 py-3">Usuário</th>
+                            <th class="px-4 py-3">Chamado</th>
+                            <th class="px-4 py-3">Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 text-gray-700">
+                        {% for log in historico %}
+                        <tr class="hover:bg-gray-50 transition duration-150">
+                            <td class="px-4 py-3 text-gray-500 whitespace-nowrap">
+                                {{ log.data_movimentacao }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                {% if log.tipo_movimentacao == 'Entrada' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
+                                    Entrada
+                                </span>
+                                {% elif log.tipo_movimentacao == 'Saída' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">
+                                    Saída
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                    {{ log.tipo_movimentacao }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 font-bold">
+                                {{ log.quantidade }}
+                            </td>
+                            <td class="px-4 py-3">
+                                {{ log.usuario }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                {% if log.numero_chamado %}
+                                <span class="bg-gray-100 p-1 border rounded text-gray-700">#{{ log.numero_chamado }}</span>
+                                {% else %}
+                                <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-gray-500 italic max-w-xs truncate" title="{{ log.detalhes }}">
+                                {{ log.detalhes or '-' }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="px-4 py-6 text-center text-gray-500">
+                                Nenhuma movimentação registrada para este item.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
