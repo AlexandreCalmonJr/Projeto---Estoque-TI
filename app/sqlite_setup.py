@@ -81,6 +81,27 @@ def setup_database_logic():
                 );
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS termos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_ativo TEXT NOT NULL,
+                    solicitante TEXT NOT NULL,
+                    usuario TEXT NOT NULL,
+                    email_usuario TEXT,
+                    unidade TEXT,
+                    localidade TEXT,
+                    setor TEXT,
+                    chamado TEXT,
+                    template_name TEXT,
+                    token TEXT UNIQUE NOT NULL,
+                    assinado BOOLEAN NOT NULL DEFAULT 0 CHECK (assinado IN (0, 1)),
+                    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    data_assinatura DATETIME,
+                    ip_assinatura TEXT,
+                    FOREIGN KEY (id_ativo) REFERENCES ativos (id_ativo)
+                );
+            """)
+
             cursor.execute("SELECT COUNT(*) FROM categorias")
             if cursor.fetchone()[0] == 0:
                 categorias_padrao = [

@@ -254,11 +254,18 @@ def detalhes_ativo(id_ativo):
         "SELECT * FROM historico WHERE id_ativo = :id_ativo ORDER BY timestamp DESC",
         {'id_ativo': id_ativo},
     )
+    termo = db_query(
+        "SELECT * FROM termos WHERE id_ativo = :id_ativo ORDER BY data_criacao DESC LIMIT 1",
+        {'id_ativo': id_ativo},
+    )
+    termo = termo[0] if termo else None
+
     return render_template(
         "detalhes_ativo.html",
         title=f"Detalhes: {ativo_list[0]['id_ativo']}",
         ativo=ativo_list[0],
         historico=historico,
+        termo=termo,
         document_templates=_document_templates(),
     )
 
@@ -311,9 +318,52 @@ def relatorios():
     )
 
 
+def _enviar_email_assinatura(email_usuario, usuario, id_ativo, token):
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.header import Header
+
+    server_host = current_app.config.get('MAIL_SERVER')
+    port = current_app.config.get('MAIL_PORT')
+    user = current_app.config.get('MAIL_USERNAME')
+    password = current_app.config.get('MAIL_PASSWORD')
+    sender = current_app.config.get('MAIL_DEFAULT_SENDER') or user
+
+    if not email_usuario or not user or not password:
+        return False
+
+    try:
+        link = url_for('main.assinar_termo', token=token, _external=True)
+        msg_content = f"""Olá {usuario},
+
+Um Termo de Responsabilidade para o ativo {id_ativo} foi gerado e aguarda sua assinatura digital.
+
+Por favor, acesse o link abaixo para visualizar os termos e realizar a assinatura digital de recebimento:
+{link}
+
+Atenciosamente,
+Setor de TI / Estoque TI
+"""
+        msg = MIMEText(msg_content, 'plain', 'utf-8')
+        msg['Subject'] = Header(f"Assinatura Digital de Termo - Ativo {id_ativo}", 'utf-8')
+        msg['From'] = sender
+        msg['To'] = email_usuario
+
+        with smtplib.SMTP(server_host, port, timeout=10) as server:
+            if current_app.config.get('MAIL_USE_TLS'):
+                server.starttls()
+            server.login(user, password)
+            server.sendmail(sender, [email_usuario], msg.as_string())
+        return True
+    except Exception as e:
+        print(f"Erro ao enviar e-mail: {e}")
+        return False
+
+
 @main_bp.route('/ativo/<id_ativo>/distribuir', methods=['POST'])
 @login_required
 def distribuir_ativo(id_ativo):
+    import secrets
     form_data = request.form
     template_name = form_data.get('template_name', '')
     _validate_template_name(template_name)
@@ -321,26 +371,103 @@ def distribuir_ativo(id_ativo):
     localidade = form_data.get('localidade', '').strip()
     setor = form_data.get('setor', '').strip()
     localizacao_final = f"{localidade} - {setor}" if localidade and setor else localidade or setor
+    usuario_resp = form_data.get('usuario_responsavel', '').strip()
+    email_usuario = form_data.get('email_usuario', '').strip()
+    unidade = form_data.get('unidade', '').strip()
+    chamado = form_data.get('numero_chamado', '').strip()
+
     detalhes = {
-        'usuario_responsavel': form_data.get('usuario_responsavel', '').strip(),
+        'usuario_responsavel': usuario_resp,
         'localizacao': localizacao_final,
         'destino': setor or localizacao_final,
     }
-    chamado = form_data.get('numero_chamado', '').strip()
 
+    # 1. Atualizar o status do ativo
     manager.movimentar(id_ativo, 'Em Uso', chamado, detalhes)
-    flash('Ativo distribuído com sucesso! Gerando documento para download...', 'success')
 
-    return redirect(url_for(
-        'main.gerar_documento',
-        id_ativo=id_ativo,
-        template_name=template_name,
-        chamado=chamado,
-        unidade=form_data.get('unidade', ''),
-        email_usuario=form_data.get('email_usuario', ''),
-        localidade=localidade,
-        setor=setor,
-    ))
+    # 2. Gerar token de assinatura digital
+    token = secrets.token_urlsafe(32)
+
+    # 3. Registrar o termo pendente no banco de dados
+    try:
+        db_execute("""
+            INSERT INTO termos (id_ativo, solicitante, usuario, email_usuario, unidade, localidade, setor, chamado, template_name, token, assinado)
+            VALUES (:id_ativo, :solicitante, :usuario, :email_usuario, :unidade, :localidade, :setor, :chamado, :template_name, :token, 0)
+        """, {
+            'id_ativo': id_ativo,
+            'solicitante': current_user.username,
+            'usuario': usuario_resp,
+            'email_usuario': email_usuario or None,
+            'unidade': unidade or None,
+            'localidade': localidade or None,
+            'setor': setor or None,
+            'chamado': chamado or None,
+            'template_name': template_name,
+            'token': token
+        })
+
+        # 4. Tentar enviar o e-mail
+        email_enviado = _enviar_email_assinatura(email_usuario, usuario_resp, id_ativo, token)
+        if email_enviado:
+            flash('Ativo distribuído com sucesso! E-mail com link de assinatura enviado para o colaborador.', 'success')
+        else:
+            flash('Ativo distribuído com sucesso! Link de assinatura digital gerado.', 'success')
+    except Exception as e:
+        flash(f'Erro ao registrar termo de assinatura: {e}', 'error')
+
+    return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
+
+
+@main_bp.route('/assinar/<token>', methods=['GET', 'POST'])
+def assinar_termo(token):
+    term_list = db_query("SELECT * FROM termos WHERE token = :token", {'token': token})
+    if not term_list:
+        abort(404, description="Link de assinatura inválido ou expirado.")
+    term = term_list[0]
+    id_ativo = term['id_ativo']
+
+    query_ativo = """
+        SELECT a.*, m.nome as modelo, c.nome as categoria
+        FROM ativos a
+        JOIN modelos m ON a.modelo_id = m.id
+        JOIN categorias c ON a.categoria_id = c.id
+        WHERE a.id_ativo = :id_ativo
+    """
+    ativo_list = db_query(query_ativo, {'id_ativo': id_ativo})
+    if not ativo_list:
+        abort(404, description="Ativo associado ao termo não encontrado.")
+    ativo = ativo_list[0]
+
+    if request.method == 'POST':
+        if term['assinado']:
+            flash('Este termo já foi assinado.', 'info')
+            return redirect(url_for('main.assinar_termo', token=token))
+
+        ip = request.remote_addr
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        try:
+            db_execute("""
+                UPDATE termos 
+                SET assinado = 1, data_assinatura = :now, ip_assinatura = :ip
+                WHERE token = :token
+            """, {
+                'now': now_str,
+                'ip': ip,
+                'token': token
+            })
+
+            detalhes_log = f"Termo de Responsabilidade assinado digitalmente por {term['usuario']} (IP: {ip})."
+            db_execute("""
+                INSERT INTO historico (id_ativo, evento, detalhes)
+                VALUES (:id_ativo, 'Assinatura Digital', :detalhes)
+            """, {'id_ativo': id_ativo, 'detalhes': detalhes_log})
+
+            flash('Termo assinado digitalmente com sucesso!', 'success')
+            return redirect(url_for('main.assinar_termo', token=token))
+        except Exception as e:
+            flash(f"Erro ao assinar termo: {e}", 'error')
+
+    return render_template('assinar_termo.html', term=term, ativo=ativo)
 
 
 @main_bp.route('/ativo/<id_ativo>/movimentar', methods=['POST'])

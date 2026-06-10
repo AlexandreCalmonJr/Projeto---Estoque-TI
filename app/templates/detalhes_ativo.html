@@ -66,7 +66,7 @@
                     Este QR Code aponta para a página de detalhes deste ativo para inventário rápido.
                 </p>
                 
-                <button onclick="window.print()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out flex items-center justify-center">
+                <button onclick="printAssetLabel()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
@@ -74,6 +74,76 @@
                 </button>
             </div>
         </div>
+
+        <!-- Card de Assinatura Digital -->
+        {% if termo %}
+        <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 no-print">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Termo de Responsabilidade
+            </h3>
+            
+            <div class="space-y-4">
+                {% if termo.assinado %}
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-green-800">Assinado Digitalmente</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-700 space-y-1 bg-gray-50 p-3 rounded">
+                    <p><strong>Responsável:</strong> {{ termo.usuario }}</p>
+                    <p><strong>Data:</strong> {{ termo.data_assinatura }}</p>
+                    <p><strong>IP:</strong> {{ termo.ip_assinatura }}</p>
+                    {% if termo.email_usuario %}
+                    <p><strong>Email:</strong> {{ termo.email_usuario }}</p>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('main.assinar_termo', token=termo.token) }}" target="_blank" class="w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded block transition-colors">
+                    Visualizar Comprovante
+                </a>
+                {% else %}
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-yellow-800">Aguardando Assinatura</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-700 space-y-1 bg-gray-50 p-3 rounded">
+                    <p><strong>Responsável:</strong> {{ termo.usuario }}</p>
+                    {% if termo.email_usuario %}
+                    <p><strong>Email:</strong> {{ termo.email_usuario }}</p>
+                    {% endif %}
+                    <p><strong>Enviado em:</strong> {{ termo.data_criacao }}</p>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="flex gap-2">
+                        <input type="text" readonly id="signature-url" value="{{ url_for('main.assinar_termo', token=termo.token, _external=True) }}" class="flex-1 text-xs border p-2 rounded bg-gray-100 select-all">
+                        <button onclick="copySignatureLink()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 rounded text-sm transition-colors">Copiar</button>
+                    </div>
+                    <a href="{{ url_for('main.assinar_termo', token=termo.token) }}" target="_blank" class="w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded block transition-colors">
+                        Assinar na Tela (Local)
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
         <div class="bg-white p-6 rounded-xl shadow-lg no-print">
             <h3 class="text-xl font-bold text-gray-800 mb-4">Ações Rápidas</h3>
@@ -208,5 +278,37 @@ document.addEventListener('DOMContentLoaded', function() {
         correctLevel : QRCode.CorrectLevel.H
     });
 });
+
+function copySignatureLink() {
+    const copyText = document.getElementById("signature-url");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(copyText.value).then(() => {
+        alert("Link de assinatura copiado com sucesso!");
+    }).catch(err => {
+        console.error("Erro ao copiar: ", err);
+    });
+}
+
+function printAssetLabel() {
+    // Injetar estilo de página específico para a etiqueta
+    const styleEl = document.createElement('style');
+    styleEl.id = 'label-print-page-style';
+    styleEl.innerHTML = '@page { size: 80mm 40mm; margin: 0; }';
+    document.head.appendChild(styleEl);
+    
+    // Adicionar classe identificadora ao body
+    document.body.classList.add('print-label-only');
+    
+    // Chamar impressão do navegador
+    window.print();
+    
+    // Limpeza pós-impressão
+    document.body.classList.remove('print-label-only');
+    const styleToRemove = document.getElementById('label-print-page-style');
+    if (styleToRemove) {
+        styleToRemove.remove();
+    }
+}
 </script>
 {% endblock %}

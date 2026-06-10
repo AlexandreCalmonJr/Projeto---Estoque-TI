@@ -62,6 +62,15 @@ class Config:
     MAX_CONTENT_LENGTH = MAX_UPLOAD_MB * 1024 * 1024
     BOOTSTRAP_ADMIN_PASSWORD = os.environ.get('BOOTSTRAP_ADMIN_PASSWORD')
 
+    # Configuração de E-mail (SMTP) para envio do link de assinatura
+    # Edite os valores abaixo diretamente ou configure variáveis de ambiente no servidor
+    MAIL_SERVER = os.environ.get('MAIL_SERVER') or 'smtp.gmail.com'
+    MAIL_PORT = _get_int_env('MAIL_PORT', 587)
+    MAIL_USE_TLS = _get_bool_env('MAIL_USE_TLS', True)
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME') or 'seu-email@gmail.com'       # Digite seu e-mail remetente aqui
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') or 'sua-senha-de-aplicativo'  # Digite a senha/senha de app aqui
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'seu-email@gmail.com'
+
     ALLOWED_UPLOAD_EXTENSIONS = {'csv', 'xlsx'}
     ASSET_STATUSES = {'Em Estoque', 'Em Uso', 'Em Manutenção', 'Em Manutencao', 'Descartado'}
     MOVEMENT_STATUSES = {'Em Estoque', 'Em Manutenção', 'Em Manutencao'}

@@ -49,17 +49,18 @@ button:focus, input:focus, select:focus, textarea:focus {
 }
 
 @media print {
-    /* Hide all page content during label printing */
-    body * {
-        visibility: hidden;
+    /* Hide all page content during label printing ONLY when body has the class 'print-label-only' */
+    body.print-label-only * {
+        visibility: hidden !important;
     }
     
     /* Only display the print label target */
-    #print-label-target, #print-label-target * {
-        visibility: visible;
+    body.print-label-only #print-label-target, 
+    body.print-label-only #print-label-target * {
+        visibility: visible !important;
     }
     
-    #print-label-target {
+    body.print-label-only #print-label-target {
         display: flex !important;
         flex-direction: column;
         justify-content: space-between;
@@ -74,11 +75,6 @@ button:focus, input:focus, select:focus, textarea:focus {
         border: 2px solid #000;
         background: #fff;
         font-family: 'Inter', sans-serif;
-    }
-    
-    @page {
-        size: 80mm 40mm;
-        margin: 0;
     }
 }
 
