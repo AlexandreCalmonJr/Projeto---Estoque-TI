@@ -1,12 +1,53 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 a = Analysis(
     ['run.py'],
     pathex=[],
     binaries=[],
-    datas=[('app/templates', 'app/templates'), ('app/static', 'app/static'), ('app/document_templates', 'app/document_templates')],
-    hiddenimports=['pandas'],
+    datas=[
+        ('app/templates', 'app/templates'),
+        ('app/static', 'app/static'),
+        ('app/document_templates', 'app/document_templates'),
+        ('config.py', '.'),
+    ],
+    hiddenimports=[
+        # Flask e extensões
+        'flask',
+        'flask_login',
+        'flask_sqlalchemy',
+        'flask_wtf',
+        'wtforms',
+        # Servidor
+        'waitress',
+        # Banco de dados
+        'sqlalchemy',
+        'sqlalchemy.dialects.sqlite',
+        # Processamento de dados
+        'pandas',
+        'pandas.io.formats.excel',
+        'openpyxl',
+        'openpyxl.styles',
+        'openpyxl.styles.fills',
+        'openpyxl.styles.alignment',
+        # Word documents
+        'docx',
+        'docx.oxml',
+        'docx.oxml.ns',
+        # Utilitários
+        'werkzeug',
+        'werkzeug.utils',
+        'werkzeug.security',
+        'jinja2',
+        'markupsafe',
+        'itsdangerous',
+        'click',
+        'email.mime.text',
+        'email.header',
+        'smtplib',
+        'qrcode',
+        'PIL',
+        'cryptography',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -14,6 +55,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -35,4 +77,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=None,
 )

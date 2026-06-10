@@ -204,8 +204,8 @@ def index():
             WHERE status = 'Concluído'
             GROUP BY mes
         """)
-        custos_por_mes = {row['mes']: row['total'] for row in gasto_mensal_res if row['mes']}
-        monthly_costs_data = [custos_por_mes.get(m, 0.0) for m in months_labels]
+        custos_por_mes = {row['mes']: (row['total'] or 0.0) for row in gasto_mensal_res if row['mes']}
+        monthly_costs_data = [float(custos_por_mes.get(m, 0.0)) for m in months_labels]
 
         # Formatar labels de meses para exibição amigável (Ex: "06/2026")
         months_display_labels = []
@@ -224,7 +224,7 @@ def index():
             ORDER BY total DESC
         """)
         category_cost_labels = [row['categoria'] for row in custos_categoria_res]
-        category_cost_data = [row['total'] for row in custos_categoria_res]
+        category_cost_data = [float(row['total'] or 0.0) for row in custos_categoria_res]
 
         # 3. Custos por Marca
         custos_marca_res = db_query("""
@@ -236,7 +236,7 @@ def index():
             ORDER BY total DESC
         """)
         brand_cost_labels = [row['marca'] for row in custos_marca_res]
-        brand_cost_data = [row['total'] for row in custos_marca_res]
+        brand_cost_data = [float(row['total'] or 0.0) for row in custos_marca_res]
 
         dashboard_data = {
             'kpis': kpis,
