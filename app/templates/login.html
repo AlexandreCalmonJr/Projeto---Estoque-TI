@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Controle de Ativos</title>
+    <title>Login - Almoxarifado Digital</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen">
     <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
         <div class="flex justify-center mb-6">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo da Empresa" class="h-12">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Almoxarifado Digital" class="w-full max-w-xs h-auto max-h-32 object-contain">
         </div>
-
-        <h2 class="text-2xl font-bold text-center text-gray-700 mb-6">Controle de Ativos de TI</h2>
-
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}

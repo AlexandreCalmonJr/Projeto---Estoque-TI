@@ -1,10 +1,10 @@
-# 🖥️ Sistema de Gestão de Ativos de TI
+# 📦 Almoxarifado Digital — Sistema de Gestão de Estoque e Patrimônio
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Sistema completo e profissional para gerenciamento de ativos de TI, desenvolvido com Flask e SQLite/PostgreSQL. Ideal para empresas que precisam controlar computadores, notebooks, periféricos e outros equipamentos tecnológicos em múltiplas unidades.
+Sistema completo e profissional para gerenciamento de estoque e patrimônio, desenvolvido com Flask e SQLite/PostgreSQL. Ideal para empresas que precisam controlar equipamentos, consumíveis e ativos patrimoniais em múltiplas unidades.
 
 ![Sistema de Gestão de Ativos](https://via.placeholder.com/800x400/3B82F6/FFFFFF?text=Sistema+de+Gestão+de+Ativos+de+TI)
 
@@ -162,10 +162,10 @@ A aplicação abrirá automaticamente no navegador em `http://127.0.0.1:8000`
 
 ### Método 2: Executável Standalone (Produção)
 
-Se você recebeu o arquivo `EstoqueTI.exe`:
+Se você recebeu o arquivo `AlmoxarifadoDigital.exe`:
 
 1. Extraia o arquivo para uma pasta
-2. Execute `EstoqueTI.exe`
+2. Execute `AlmoxarifadoDigital.exe`
 3. O sistema abrirá automaticamente no navegador
 
 **Nota**: No Windows, pode aparecer um aviso do SmartScreen. Clique em "Mais informações" e depois "Executar assim mesmo".
@@ -369,7 +369,7 @@ gestao-ativos-ti/
 ├── run.py                       # Script de execução
 ├── create_user.py               # Script para criar usuários
 ├── requirements.txt             # Dependências Python
-├── EstoqueTI.spec               # Especificações PyInstaller
+├── EstoqueFacil.spec              # Especificações PyInstaller (gera AlmoxarifadoDigital.exe)
 ├── README.md                    # Este arquivo
 └── LICENSE                      # Licença do projeto
 ```
@@ -437,10 +437,10 @@ pip install pyinstaller
 
 2. Execute o comando de build:
 ```bash
-pyinstaller EstoqueTI.spec
+pyinstaller EstoqueFacil.spec
 ```
 
-3. O executável estará em `dist/EstoqueTI.exe`
+3. O executável estará em `dist/AlmoxarifadoDigital.exe`
 
 ### Distribuição
 
