@@ -54,8 +54,12 @@ def create_app(config_name=None):
         return None
 
     @app.context_processor
-    def inject_csrf_token():
-        return {'csrf_token': _get_csrf_token}
+    def inject_globals():
+        from app.models import get_setting
+        return {
+            'csrf_token': _get_csrf_token,
+            'get_setting': get_setting
+        }
 
     from app.main import main_bp
     app.register_blueprint(main_bp)

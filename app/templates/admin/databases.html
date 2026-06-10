@@ -1,0 +1,43 @@
+{% extends 'admin/base_admin.html' %}
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm border-collapse">
+            <thead>
+                <tr class="bg-gray-100 text-gray-700 uppercase text-xs font-semibold border-b">
+                    <th class="p-4">Filial / Banco</th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4">Caminho do Arquivo (.db)</th>
+                    <th class="p-4 text-center">Tamanho</th>
+                    <th class="p-4 text-center">Total de Ativos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for db in databases %}
+                <tr class="border-b hover:bg-gray-50 transition-colors">
+                    <td class="p-4 font-bold text-gray-800">{{ db.name }}</td>
+                    <td class="p-4">
+                        {% if db.status == 'Online' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                            ● Online
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                            ● Offline
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="p-4 text-xs font-mono text-gray-500 break-all">{{ db.path }}</td>
+                    <td class="p-4 text-center font-semibold text-gray-600">{{ db.size }}</td>
+                    <td class="p-4 text-center font-bold text-blue-600">{{ db.ativos_count }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="p-6 text-center text-gray-500">Nenhum banco de dados configurado no sistema.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'admin/base_admin.html' %}
+{% block content %}
+<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm border-collapse">
+            <thead>
+                <tr class="bg-gray-100 text-gray-700 uppercase text-xs font-semibold border-b">
+                    <th class="p-4 w-24">ID</th>
+                    <th class="p-4 w-48">Data / Hora</th>
+                    <th class="p-4 w-40">Usuário</th>
+                    <th class="p-4 w-56">Ação Realizada</th>
+                    <th class="p-4">Detalhes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="border-b hover:bg-gray-50 transition-colors">
+                    <td class="p-4 text-gray-400 font-mono">#{{ log.id }}</td>
+                    <td class="p-4 text-gray-500 text-xs">{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else 'N/A' }}</td>
+                    <td class="p-4">
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold {% if log.username == 'admin' %}bg-blue-100 text-blue-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ log.username or 'Sistema' }}
+                        </span>
+                    </td>
+                    <td class="p-4 font-bold text-gray-800 text-xs">{{ log.action }}</td>
+                    <td class="p-4 text-gray-600 text-xs break-all">{{ log.details or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro de auditoria disponível no momento.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -9,15 +9,23 @@
 <body class="bg-gray-200">
     <div class="flex h-screen">
         <aside class="w-64 bg-gray-900 text-white p-6 flex flex-col">
+            <div class="mb-6 text-center border-b border-gray-800 pb-4">
+                <img src="{{ url_for('main.serve_custom_logo') }}" alt="Logo" class="h-12 mx-auto object-contain mb-2">
+                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">{{ get_setting('company_name', 'Almoxarifado Digital') }}</p>
+            </div>
             <div>
-                <h1 class="text-2xl font-bold mb-8">ADMINISTRAÇÃO</h1>
-                <nav>
-                    <a href="{{ url_for('admin.admin_dashboard') }}" class="block py-2 px-4 rounded hover:bg-gray-700">Visão Geral</a>
-                    <a href="{{ url_for('admin.list_users') }}" class="block py-2 px-4 rounded hover:bg-gray-700">Usuários</a>
+                <h1 class="text-xs font-bold text-gray-500 mb-4 tracking-wider uppercase">Painel Administrativo</h1>
+                <nav class="space-y-1">
+                    <a href="{{ url_for('admin.admin_dashboard') }}" class="block py-2 px-4 rounded hover:bg-gray-700 transition-colors">Visão Geral</a>
+                    <a href="{{ url_for('admin.list_users') }}" class="block py-2 px-4 rounded hover:bg-gray-700 transition-colors">Usuários</a>
+                    <a href="{{ url_for('admin.list_databases') }}" class="block py-2 px-4 rounded hover:bg-gray-700 transition-colors">Bancos de Dados</a>
+                    <a href="{{ url_for('admin.list_audit_logs') }}" class="block py-2 px-4 rounded hover:bg-gray-700 transition-colors">Auditoria</a>
+                    <a href="{{ url_for('admin.system_settings') }}" class="block py-2 px-4 rounded hover:bg-gray-700 transition-colors">Configurações</a>
+                    <a href="{{ url_for('admin.maintenance_page') }}" class="block py-2 px-4 rounded hover:bg-gray-700 transition-colors">Backup & Limpeza</a>
                 </nav>
             </div>
             <div class="mt-auto">
-                <a href="{{ url_for('main.index') }}" class="block text-center w-full mt-4 py-2 px-4 rounded bg-blue-600 hover:bg-blue-700">Voltar ao Sistema</a>
+                <a href="{{ url_for('main.index') }}" class="block text-center w-full mt-4 py-2 px-4 rounded bg-blue-600 hover:bg-blue-700 font-semibold transition-colors">Voltar ao Sistema</a>
             </div>
         </aside>
         <main class="flex-1 p-8 overflow-y-auto">

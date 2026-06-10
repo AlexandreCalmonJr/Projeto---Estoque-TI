@@ -31,8 +31,8 @@
     <header class="bg-white shadow no-print">
         <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo da Empresa" class="h-10">
-                <span class="text-xl font-extrabold text-gray-800 tracking-wider">Controle TI</span>
+                <img src="{{ url_for('main.serve_custom_logo') }}" alt="{{ get_setting('company_name', 'Almoxarifado Digital') }}" class="h-10">
+                <span class="text-xl font-extrabold text-gray-800 tracking-wider">{{ get_setting('company_name', 'Almoxarifado Digital') }}</span>
             </div>
             <span class="text-xs bg-blue-100 text-blue-800 font-semibold px-2.5 py-0.5 rounded-full">Recibo Digital</span>
         </div>
@@ -68,8 +68,8 @@
                 <!-- Cabeçalho de Impressão -->
                 <div class="hidden print:flex justify-between items-center border-b pb-4 mb-4">
                     <div>
-                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="h-12 mb-2">
-                        <h2 class="text-lg font-bold">COMPROVANTE DE RECEBIMENTO E ASSINATURA</h2>
+                        <img src="{{ url_for('main.serve_custom_logo') }}" alt="Logo" class="h-12 mb-2">
+                        <h2 class="text-lg font-bold">COMPROVANTE DE RECEBIMENTO E ASSINATURA - {{ get_setting('company_name', 'Almoxarifado Digital')|upper }}</h2>
                     </div>
                     <div class="text-right text-xs text-gray-500">
                         <p>ID do Termo: #{{ term.id }}</p>
@@ -127,11 +127,16 @@
                 <!-- Termos Aceitos -->
                 <div class="border rounded-xl p-5">
                     <h3 class="font-bold text-gray-700 border-b pb-2 mb-3 tracking-wider text-xs">TERMOS DE RESPONSABILIDADE ACEITOS</h3>
-                    <div class="text-xs text-gray-600 space-y-2.5 max-h-48 overflow-y-auto pr-2">
-                        <p><strong>CLÁUSULA PRIMEIRA:</strong> O equipamento deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade a ser exercida pelo COLABORADOR.</p>
-                        <p><strong>CLÁUSULA SEGUNDA:</strong> Ficará o colaborador responsável pelo uso e conservação do equipamento, em caso de mau uso será analisado a causa do evento e posteriormente aplicado as devidas penalidades.</p>
-                        <p><strong>CLÁUSULA TERCEIRA:</strong> O Setor tem somente a DETENÇÃO, tendo em vista o uso exclusivo para prestação de serviços profissionais, e NÃO a PROPRIEDADE do equipamento, sendo rigorosamente proibido o empréstimo, aluguel ou cessão deste a terceiros.</p>
-                        <p><strong>CLÁUSULA QUARTA:</strong> No caso de o equipamento ficar sem uso no setor, o COLABORADOR se responsabiliza a devolver esse ativo para que a TI, possa realocar para outras unidades e tirar o mesmo da responsabilidade.</p>
+                    <div class="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto pr-2">
+                        {% set custom_text = get_setting('termo_texto') %}
+                        {% if custom_text %}
+                            {{ custom_text }}
+                        {% else %}
+                            <p class="mb-2"><strong>CLÁUSULA PRIMEIRA:</strong> O equipamento deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade a ser exercida pelo COLABORADOR.</p>
+                            <p class="mb-2"><strong>CLÁUSULA SEGUNDA:</strong> Ficará o colaborador responsável pelo uso e conservação do equipamento, em caso de mau uso será analisado a causa do evento e posteriormente aplicado as devidas penalidades.</p>
+                            <p class="mb-2"><strong>CLÁUSULA TERCEIRA:</strong> O Setor tem somente a DETENÇÃO, tendo em vista o uso exclusivo para prestação de serviços profissionais, e NÃO a PROPRIEDADE do equipamento, sendo rigorosamente proibido o empréstimo, aluguel ou cessão deste a terceiros.</p>
+                            <p class="mb-2"><strong>CLÁUSULA QUARTA:</strong> No caso de o equipamento ficar sem uso no setor, o COLABORADOR se responsabiliza a devolver esse ativo para que a TI, possa realocar para outras unidades e tirar o mesmo da responsabilidade.</p>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -200,16 +205,21 @@
                 <div class="border rounded-xl p-5 bg-blue-50/30 border-blue-100">
                     <h3 class="font-bold text-blue-900 border-b border-blue-100 pb-2 mb-3 tracking-wider text-xs">TERMOS E CLÁUSULAS DE RESPONSABILIDADE</h3>
                     
-                    <div class="text-xs text-gray-700 space-y-3 leading-relaxed">
-                        <p><strong>CLÁUSULA PRIMEIRA:</strong> O equipamento descrito acima deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade profissional exercida pelo COLABORADOR.</p>
-                        <p><strong>CLÁUSULA SEGUNDA:</strong> O colaborador declara que recebeu o equipamento em pleno estado de conservação e funcionamento. Ficará o colaborador responsável pelo uso correto e preservação do equipamento, respondendo por eventuais danos causados por negligência ou mau uso.</p>
-                        <p><strong>CLÁUSULA TERCEIRA:</strong> O colaborador tem somente a DETENÇÃO e USO do equipamento para a realização do seu trabalho, não possuindo a PROPRIEDADE dele. É expressamente proibido emprestar, alugar ou ceder o ativo a terceiros sem autorização expressa da equipe de TI.</p>
-                        <p><strong>CLÁUSULA QUARTA:</strong> No caso de desligamento da empresa, mudança de setor ou de o equipamento ficar sem uso no departamento, o COLABORADOR compromete-se a devolvê-lo imediatamente ao setor de TI para baixa de sua responsabilidade.</p>
+                    <div class="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {% set custom_text = get_setting('termo_texto') %}
+                        {% if custom_text %}
+                            {{ custom_text }}
+                        {% else %}
+                            <p class="mb-2"><strong>CLÁUSULA PRIMEIRA:</strong> O equipamento descrito acima deverá ser utilizado ÚNICA e EXCLUSIVAMENTE a serviço da empresa, tendo em vista a atividade profissional exercida pelo COLABORADOR.</p>
+                            <p class="mb-2"><strong>CLÁUSULA SEGUNDA:</strong> O colaborador declara que recebeu o equipamento em pleno estado de conservação e funcionamento. Ficará o colaborador responsável pelo uso correto e preservação do equipamento, respondendo por eventuais danos causados por negligência ou mau uso.</p>
+                            <p class="mb-2"><strong>CLÁUSULA TERCEIRA:</strong> O colaborador tem somente a DETENÇÃO e USO do equipamento para a realização do seu trabalho, não possuindo a PROPRIEDADE dele. É expressamente proibido emprestar, alugar ou ceder o ativo a terceiros sem autorização expressa da equipe de TI.</p>
+                            <p class="mb-2"><strong>CLÁUSULA QUARTA:</strong> No caso de desligamento da empresa, mudança de setor ou de o equipamento ficar sem uso no departamento, o COLABORADOR compromete-se a devolvê-lo imediatamente ao setor de TI para baixa de sua responsabilidade.</p>
+                        {% endif %}
                     </div>
                 </div>
 
                 <!-- Validação e Formulário -->
-                <div class="pt-4 space-y-4">
+                <div class="no-print pt-4 space-y-4">
                     <label class="flex items-start cursor-pointer">
                         <input type="checkbox" required class="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
                         <span class="text-xs text-gray-600 leading-normal">
@@ -217,12 +227,30 @@
                         </span>
                     </label>
 
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-sm flex items-center justify-center">
-                        <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                        Aceitar e Assinar Digitalmente
-                    </button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-sm flex items-center justify-center">
+                            <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            Aceitar e Assinar Digitalmente
+                        </button>
+                        
+                        <button type="button" onclick="window.print()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-sm flex items-center justify-center">
+                            <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            Imprimir para Assinatura Física
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bloco de assinatura física para impressão (oculto na tela, visível apenas na impressão) -->
+                <div class="hidden print:block pt-16 text-center text-sm border-t border-dashed mt-12">
+                    <p class="mb-16 text-gray-600 text-xs">Declaro para os devidos fins que recebi o equipamento listado acima em perfeito estado de conservação e funcionamento, aceitando integralmente todas as cláusulas e obrigações descritas neste termo.</p>
+                    <div class="inline-block border-t border-gray-400 w-72 pt-1 text-gray-800 font-bold text-xs">
+                        Assinatura do Colaborador (Física)
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">Data: ____ / ____ / ________</p>
                 </div>
             </form>
             {% endif %}

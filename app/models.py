@@ -358,3 +358,59 @@ def get_engine_by_key(key):
     if not db_info:
         raise ValueError(f"Configuração para banco '{key}' não encontrada")
     return create_engine(db_info['url'])
+
+
+class Setting(db.Model):
+    __bind_key__ = None
+    __tablename__ = 'settings'
+
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.Text, nullable=True)
+
+
+class AuditLog(db.Model):
+    __bind_key__ = None
+    __tablename__ = 'audit_logs'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    username = db.Column(db.String(64), nullable=True)
+    action = db.Column(db.String(128), nullable=False)
+    details = db.Column(db.Text, nullable=True)
+
+
+def get_setting(key, default=None):
+    try:
+        setting = Setting.query.filter_by(key=key).first()
+        if setting and setting.value is not None:
+            return setting.value
+        return default
+    except Exception:
+        return default
+
+
+def set_setting(key, value):
+    try:
+        setting = Setting.query.filter_by(key=key).first()
+        if not setting:
+            setting = Setting(key=key, value=value)
+            db.session.add(setting)
+        else:
+            setting.value = value
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao salvar configuracao {key}: {e}")
+        raise
+
+
+def log_audit(action, details=None):
+    try:
+        from flask_login import current_user
+        username = current_user.username if (current_user and current_user.is_authenticated) else 'Sistema'
+        log_entry = AuditLog(username=username, action=action, details=details, timestamp=datetime.now())
+        db.session.add(log_entry)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao salvar log de auditoria: {e}")

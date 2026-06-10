@@ -18,6 +18,19 @@ from . import main_bp
 manager = AssetManager()
 
 
+@main_bp.route('/logo_custom.png')
+def serve_custom_logo():
+    import os
+    from flask import send_from_directory
+    from config import basedir
+    uploads_dir = os.path.join(basedir, 'uploads')
+    logo_path = os.path.join(uploads_dir, 'logo_custom.png')
+    if os.path.exists(logo_path):
+        return send_from_directory(uploads_dir, 'logo_custom.png')
+    # Fallback para o logotipo padrão
+    return send_from_directory(os.path.join(current_app.root_path, 'static', 'images'), 'logo.png')
+
+
 def _allowed_file(filename):
     if not filename or '.' not in filename:
         return False
@@ -571,13 +584,29 @@ def relatorios():
 def _enviar_email_assinatura(email_usuario, usuario, id_ativo, token):
     import threading
     from flask import current_app
+    from app.models import get_setting
 
-    server_host = current_app.config.get('MAIL_SERVER')
-    port = current_app.config.get('MAIL_PORT')
-    user = current_app.config.get('MAIL_USERNAME')
-    password = current_app.config.get('MAIL_PASSWORD')
-    sender = current_app.config.get('MAIL_DEFAULT_SENDER') or user
-    use_tls = current_app.config.get('MAIL_USE_TLS')
+    # Lê configurações do banco de dados com fallback para as do config.py
+    server_host = get_setting('mail_server') or current_app.config.get('MAIL_SERVER')
+    
+    port_setting = get_setting('mail_port')
+    if port_setting:
+        try:
+            port = int(port_setting)
+        except ValueError:
+            port = current_app.config.get('MAIL_PORT') or 587
+    else:
+        port = current_app.config.get('MAIL_PORT') or 587
+
+    user = get_setting('mail_username') or current_app.config.get('MAIL_USERNAME')
+    password = get_setting('mail_password') or current_app.config.get('MAIL_PASSWORD')
+    sender = get_setting('mail_default_sender') or current_app.config.get('MAIL_DEFAULT_SENDER') or user
+    
+    use_tls_setting = get_setting('mail_use_tls')
+    if use_tls_setting is not None:
+        use_tls = use_tls_setting.lower() in ('true', '1', 'yes')
+    else:
+        use_tls = current_app.config.get('MAIL_USE_TLS')
 
     # Validação rápida de credenciais padrão ou ausência de dados
     if not email_usuario or not user or not password or user == 'seu-email@gmail.com' or password == 'sua-senha-de-aplicativo':
@@ -585,6 +614,8 @@ def _enviar_email_assinatura(email_usuario, usuario, id_ativo, token):
 
     try:
         link = url_for('main.assinar_termo', token=token, _external=True)
+        company_name = get_setting('company_name', 'Almoxarifado Digital')
+        
         msg_content = f"""Olá {usuario},
 
 Um Termo de Responsabilidade para o ativo {id_ativo} foi gerado e aguarda sua assinatura digital.
@@ -593,7 +624,7 @@ Por favor, acesse o link abaixo para visualizar os termos e realizar a assinatur
 {link}
 
 Atenciosamente,
-Setor de TI / Estoque TI
+Setor de TI / {company_name}
 """
         subject = f"Assinatura Digital de Termo - Ativo {id_ativo}"
 

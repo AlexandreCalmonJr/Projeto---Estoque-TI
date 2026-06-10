@@ -224,6 +224,7 @@
                 Editar Informações do Ativo
             </a>
 
+            {% if get_setting('only_digital_signature') != 'true' %}
             <div class="mb-6 border-b pb-6">
                 <h4 class="font-semibold mb-2">Gerar Documento</h4>
                 <div class="flex gap-2">
@@ -235,6 +236,7 @@
                     <button onclick="gerarDocumento()" class="bg-green-600 text-white px-4 rounded hover:bg-green-700">Gerar</button>
                 </div>
             </div>
+            {% endif %}
 
             <form action="{{ url_for('main.distribuir_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -253,6 +255,9 @@
                 
                 <input type="text" name="numero_chamado" placeholder="Nº do Chamado" class="w-full p-2 border rounded mb-2" required>
                 
+                {% if get_setting('only_digital_signature') == 'true' %}
+                <input type="hidden" name="template_name" value="Termo de Responsabilidade de Ativos - modelo.docx">
+                {% else %}
                 <div class="mb-4">
                     <label for="template_name" class="block text-gray-700 text-sm font-bold mb-2">Gerar Documento</label>
                     <select name="template_name" id="template_name" class="w-full p-2 border rounded">
@@ -261,6 +266,7 @@
                         <option value="Termo de Comodato - Notebook - modelo.docx">Termo de Comodato (Notebook)</option>
                     </select>
                 </div>
+                {% endif %}
 
                 <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Distribuir e Gerar Documento</button>
             </form>
