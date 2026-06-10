@@ -569,17 +569,18 @@ def relatorios():
 
 
 def _enviar_email_assinatura(email_usuario, usuario, id_ativo, token):
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.header import Header
+    import threading
+    from flask import current_app
 
     server_host = current_app.config.get('MAIL_SERVER')
     port = current_app.config.get('MAIL_PORT')
     user = current_app.config.get('MAIL_USERNAME')
     password = current_app.config.get('MAIL_PASSWORD')
     sender = current_app.config.get('MAIL_DEFAULT_SENDER') or user
+    use_tls = current_app.config.get('MAIL_USE_TLS')
 
-    if not email_usuario or not user or not password:
+    # Validação rápida de credenciais padrão ou ausência de dados
+    if not email_usuario or not user or not password or user == 'seu-email@gmail.com' or password == 'sua-senha-de-aplicativo':
         return False
 
     try:
@@ -594,19 +595,33 @@ Por favor, acesse o link abaixo para visualizar os termos e realizar a assinatur
 Atenciosamente,
 Setor de TI / Estoque TI
 """
-        msg = MIMEText(msg_content, 'plain', 'utf-8')
-        msg['Subject'] = Header(f"Assinatura Digital de Termo - Ativo {id_ativo}", 'utf-8')
-        msg['From'] = sender
-        msg['To'] = email_usuario
+        subject = f"Assinatura Digital de Termo - Ativo {id_ativo}"
 
-        with smtplib.SMTP(server_host, port, timeout=10) as server:
-            if current_app.config.get('MAIL_USE_TLS'):
-                server.starttls()
-            server.login(user, password)
-            server.sendmail(sender, [email_usuario], msg.as_string())
+        def send_email_thread():
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.header import Header
+            try:
+                msg = MIMEText(msg_content, 'plain', 'utf-8')
+                msg['Subject'] = Header(subject, 'utf-8')
+                msg['From'] = sender
+                msg['To'] = email_usuario
+
+                with smtplib.SMTP(server_host, port, timeout=10) as server:
+                    if use_tls:
+                        server.starttls()
+                    server.login(user, password)
+                    server.sendmail(sender, [email_usuario], msg.as_string())
+                print(f"E-mail enviado com sucesso em segundo plano para: {email_usuario}")
+            except Exception as thread_error:
+                print(f"Erro ao enviar e-mail em segundo plano para {email_usuario}: {thread_error}")
+
+        # Inicia o envio em segundo plano
+        t = threading.Thread(target=send_email_thread, daemon=True)
+        t.start()
         return True
     except Exception as e:
-        print(f"Erro ao enviar e-mail: {e}")
+        print(f"Erro ao iniciar thread de envio de e-mail: {e}")
         return False
 
 
