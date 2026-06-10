@@ -102,6 +102,33 @@ def setup_database_logic():
                 );
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS consumiveis (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT UNIQUE NOT NULL,
+                    quantidade INTEGER NOT NULL DEFAULT 0,
+                    unidade_medida TEXT NOT NULL DEFAULT 'unidade',
+                    estoque_minimo INTEGER NOT NULL DEFAULT 0,
+                    localizacao TEXT,
+                    fornecedor TEXT,
+                    observacoes TEXT
+                );
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS consumiveis_historico (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    consumivel_id INTEGER NOT NULL,
+                    tipo_movimentacao TEXT NOT NULL,
+                    quantidade INTEGER NOT NULL,
+                    data_movimentacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    usuario TEXT NOT NULL,
+                    numero_chamado TEXT,
+                    detalhes TEXT,
+                    FOREIGN KEY (consumivel_id) REFERENCES consumiveis (id)
+                );
+            """)
+
             cursor.execute("SELECT COUNT(*) FROM categorias")
             if cursor.fetchone()[0] == 0:
                 categorias_padrao = [

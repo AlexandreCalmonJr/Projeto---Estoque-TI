@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <p class="text-sm text-gray-500 mt-1">Gerenciamento e controle de itens de consumo rápido (toner, cabos, periféricos, etc.)</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{{ url_for('main.almoxarifado_novo') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition duration-150 ease-in-out flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Cadastrar Item
+            </a>
+            <a href="{{ url_for('main.almoxarifado_historico') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-5 rounded-lg border border-gray-300 transition duration-150 ease-in-out flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Histórico
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPIs Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- Card 1: Total de Itens -->
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex items-center transition hover:shadow-lg duration-200">
+        <div class="bg-blue-100 text-blue-600 rounded-full p-4 mr-5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+        </div>
+        <div>
+            <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total de Itens</p>
+            <p class="text-3xl font-extrabold text-gray-800 mt-1">{{ total_itens }}</p>
+        </div>
+    </div>
+
+    <!-- Card 2: Itens em Alerta -->
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex items-center transition hover:shadow-lg duration-200">
+        <div class="{% if itens_alerta > 0 %}bg-red-100 text-red-600{% else %}bg-green-100 text-green-600{% endif %} rounded-full p-4 mr-5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <div>
+            <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Estoque Baixo / Crítico</p>
+            <p class="text-3xl font-extrabold {% if itens_alerta > 0 %}text-red-600{% else %}text-green-600{% endif %} mt-1">{{ itens_alerta }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros e Busca -->
+<div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-8">
+    <form method="GET" action="{{ url_for('main.almoxarifado') }}" class="flex flex-col md:flex-row gap-4">
+        <div class="flex-1 relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nome do consumível..." class="pl-10 w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg shadow-sm transition">
+                Filtrar
+            </button>
+            {% if q %}
+            <a href="{{ url_for('main.almoxarifado') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-6 py-2.5 rounded-lg border border-gray-300 transition flex items-center">
+                Limpar
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Tabela de Itens -->
+<div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 text-left">
+            <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Nome do Item</th>
+                    <th scope="col" class="px-6 py-4">Estoque Atual</th>
+                    <th scope="col" class="px-6 py-4">Mínimo</th>
+                    <th scope="col" class="px-6 py-4">Localização</th>
+                    <th scope="col" class="px-6 py-4">Fornecedor</th>
+                    <th scope="col" class="px-6 py-4">Observações</th>
+                    <th scope="col" class="px-6 py-4 text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 text-sm">
+                {% for item in itens %}
+                {% set alerta = item.quantidade <= item.estoque_minimo %}
+                <tr class="hover:bg-gray-50 transition duration-150 {% if alerta %}bg-red-50/50 hover:bg-red-50{% endif %}">
+                    <td class="px-6 py-4 font-semibold text-gray-800">
+                        <div class="flex items-center gap-2">
+                            {{ item.nome }}
+                            {% if alerta %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                                Estoque Baixo
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="font-bold {% if alerta %}text-red-600{% else %}text-gray-900{% endif %}">
+                            {{ item.quantidade }}
+                        </span>
+                        <span class="text-gray-500 text-xs ml-1">{{ item.unidade_medida }}s</span>
+                    </td>
+                    <td class="px-6 py-4 text-gray-500">
+                        {{ item.estoque_minimo }} {{ item.unidade_medida }}s
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">
+                        {{ item.localizacao or '-' }}
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">
+                        {{ item.fornecedor or '-' }}
+                    </td>
+                    <td class="px-6 py-4 text-gray-500 italic max-w-xs truncate" title="{{ item.observacoes }}">
+                        {{ item.observacoes or '-' }}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="inline-flex rounded-lg shadow-sm border border-gray-200 bg-white p-0.5">
+                            <button type="button" onclick="openModal({{ item.id }}, '{{ item.nome | escape }}', 'Entrada', '{{ item.unidade_medida }}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-green-700 hover:bg-green-50 transition duration-150">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                                </svg>
+                                Entrada
+                            </button>
+                            <div class="w-px bg-gray-200 my-1"></div>
+                            <button type="button" onclick="openModal({{ item.id }}, '{{ item.nome | escape }}', 'Saída', '{{ item.unidade_medida }}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-red-700 hover:bg-red-50 transition duration-150">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                                </svg>
+                                Saída
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                        Nenhum item encontrado no almoxarifado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal de Movimentação Rápida -->
+<div id="movimentarModal" class="fixed inset-0 bg-black bg-opacity-40 overflow-y-auto h-full w-full hidden z-50 transition-all duration-300">
+    <div class="relative top-24 mx-auto p-6 border w-96 shadow-2xl rounded-xl bg-white animate-fade-in">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+            <h3 id="modal-title" class="text-lg font-bold text-gray-800">Registrar Movimentação</h3>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form id="modal-form" method="POST" action="" class="mt-4 space-y-4">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="modal-type" name="tipo_movimentacao" value="">
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Consumível</label>
+                <input type="text" id="modal-item-name" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-gray-700 outline-none font-medium" readonly>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Quantidade (<span id="modal-unidade">unidade</span>)</label>
+                <input type="number" name="quantidade" min="1" value="1" required class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nº do Chamado (Opcional)</label>
+                <input type="text" name="numero_chamado" placeholder="ex: 12345" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Motivo / Detalhes (Opcional)</label>
+                <textarea name="detalhes" rows="3" placeholder="Insira detalhes sobre a movimentação..." class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none resize-none"></textarea>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 rounded-lg border border-gray-300 transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-md transition">
+                    Confirmar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openModal(id, name, type, unidade) {
+    document.getElementById('modal-title').innerText = type === 'Entrada' ? 'Entrada de Estoque' : 'Saída de Estoque';
+    document.getElementById('modal-item-name').value = name;
+    document.getElementById('modal-type').value = type;
+    document.getElementById('modal-unidade').innerText = unidade;
+    document.getElementById('modal-form').action = "{{ url_for('main.almoxarifado') }}/movimentar/" + id;
+    document.getElementById('movimentarModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('movimentarModal').classList.add('hidden');
+}
+
+// Fechar modal ao clicar fora dele
+window.onclick = function(event) {
+    var modal = document.getElementById('movimentarModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
+{% endblock %}

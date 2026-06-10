@@ -159,6 +159,13 @@ def index():
 
         ativos_provisorios_count = db_query("SELECT COUNT(id) as count FROM ativos WHERE numero_serie LIKE 'PROV-%'")[0]['count']
 
+        try:
+            almoxarifado_alerta_count = db_query("SELECT COUNT(id) as count FROM consumiveis WHERE quantidade <= estoque_minimo")[0]['count']
+            consumiveis_list = db_query("SELECT nome, quantidade, estoque_minimo FROM consumiveis ORDER BY quantidade DESC")
+        except Exception:
+            almoxarifado_alerta_count = 0
+            consumiveis_list = []
+
         lista_ativos_filtrados = db_query(f"""
             SELECT a.id_ativo, c.nome as categoria, m.nome as modelo, a.status, a.usuario_responsavel
             FROM ativos a
@@ -186,7 +193,11 @@ def index():
             'destino_data': destino_data,
             'ativos_antigos': ativos_antigos,
             'ativos_provisorios_count': ativos_provisorios_count,
+            'almoxarifado_alerta_count': almoxarifado_alerta_count,
             'lista_ativos': lista_ativos_filtrados,
+            'consumiveis_labels': [item['nome'] for item in consumiveis_list],
+            'consumiveis_quantidades': [item['quantidade'] for item in consumiveis_list],
+            'consumiveis_minimos': [item['estoque_minimo'] for item in consumiveis_list],
         }
     except Exception as e:
         flash(f"Ocorreu um erro ao carregar os dados do dashboard: {e}", "error")
@@ -198,7 +209,11 @@ def index():
             'destino_data': [],
             'ativos_antigos': [],
             'ativos_provisorios_count': 0,
+            'almoxarifado_alerta_count': 0,
             'lista_ativos': [],
+            'consumiveis_labels': [],
+            'consumiveis_quantidades': [],
+            'consumiveis_minimos': [],
         }
         todas_categorias, todos_modelos, filtros_selecionados = [], [], {}
 
@@ -765,3 +780,165 @@ def gerar_documento(id_ativo, template_name):
     except Exception as e:
         flash(f'Ocorreu um erro ao gerar o documento: {e}', 'error')
         return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
+
+
+@main_bp.route('/almoxarifado')
+@login_required
+def almoxarifado():
+    try:
+        q = request.args.get('q', '').strip()
+        query = "SELECT * FROM consumiveis"
+        params = {}
+        if q:
+            query += " WHERE nome LIKE :search_term"
+            params['search_term'] = f"%{q}%"
+        query += " ORDER BY nome"
+        
+        itens = db_query(query, params)
+        total_itens = len(itens)
+        itens_alerta = sum(1 for item in itens if item['quantidade'] <= item['estoque_minimo'])
+        
+        return render_template(
+            'almoxarifado.html',
+            title="Almoxarifado Geral",
+            itens=itens,
+            total_itens=total_itens,
+            itens_alerta=itens_alerta,
+            q=q
+        )
+    except Exception as e:
+        flash(f"Erro ao carregar almoxarifado: {e}", "error")
+        return redirect(url_for('main.index'))
+
+
+@main_bp.route('/almoxarifado/novo', methods=['GET', 'POST'])
+@login_required
+def almoxarifado_novo():
+    if request.method == 'POST':
+        try:
+            nome = request.form.get('nome', '').strip()
+            quantidade = int(request.form.get('quantidade', 0))
+            unidade_medida = request.form.get('unidade_medida', 'unidade').strip()
+            estoque_minimo = int(request.form.get('estoque_minimo', 0))
+            localizacao = request.form.get('localizacao', '').strip()
+            fornecedor = request.form.get('fornecedor', '').strip()
+            observacoes = request.form.get('observacoes', '').strip()
+            
+            if not nome:
+                flash("O nome do consumível é obrigatório.", "error")
+                return redirect(url_for('main.almoxarifado_novo'))
+                
+            if quantidade < 0 or estoque_minimo < 0:
+                flash("A quantidade e o estoque mínimo não podem ser negativos.", "error")
+                return redirect(url_for('main.almoxarifado_novo'))
+                
+            db_execute("""
+                INSERT INTO consumiveis (nome, quantidade, unidade_medida, estoque_minimo, localizacao, fornecedor, observacoes)
+                VALUES (:nome, :quantidade, :unidade_medida, :estoque_minimo, :localizacao, :fornecedor, :observacoes)
+            """, {
+                'nome': nome,
+                'quantidade': quantidade,
+                'unidade_medida': unidade_medida,
+                'estoque_minimo': estoque_minimo,
+                'localizacao': localizacao,
+                'fornecedor': fornecedor,
+                'observacoes': observacoes
+            })
+            
+            res = db_query("SELECT id FROM consumiveis WHERE nome = :nome", {'nome': nome})
+            if res:
+                consumivel_id = res[0]['id']
+                db_execute("""
+                    INSERT INTO consumiveis_historico (consumivel_id, tipo_movimentacao, quantidade, usuario, detalhes)
+                    VALUES (:consumivel_id, 'Entrada', :quantidade, :usuario, 'Cadastro inicial do item')
+                """, {
+                    'consumivel_id': consumivel_id,
+                    'quantidade': quantidade,
+                    'usuario': current_user.username
+                })
+            
+            flash("Item cadastrado com sucesso no almoxarifado!", "success")
+            return redirect(url_for('main.almoxarifado'))
+        except Exception as e:
+            flash(f"Erro ao cadastrar consumível: {e}", "error")
+            return redirect(url_for('main.almoxarifado_novo'))
+            
+    return render_template('almoxarifado_novo.html', title="Novo Item de Consumo")
+
+
+@main_bp.route('/almoxarifado/movimentar/<int:item_id>', methods=['POST'])
+@login_required
+def almoxarifado_movimentar(item_id):
+    try:
+        tipo_movimentacao = request.form.get('tipo_movimentacao', '').strip()
+        quantidade = int(request.form.get('quantidade', 0))
+        numero_chamado = request.form.get('numero_chamado', '').strip() or None
+        detalhes = request.form.get('detalhes', '').strip() or None
+        
+        if quantidade <= 0:
+            flash("A quantidade para movimentação deve ser maior que zero.", "error")
+            return redirect(url_for('main.almoxarifado'))
+            
+        res = db_query("SELECT * FROM consumiveis WHERE id = :id", {'id': item_id})
+        if not res:
+            flash("Item não encontrado.", "error")
+            return redirect(url_for('main.almoxarifado'))
+            
+        item = res[0]
+        q_atual = item['quantidade']
+        
+        if tipo_movimentacao == 'Entrada':
+            nova_q = q_atual + quantidade
+        elif tipo_movimentacao == 'Saída':
+            if q_atual < quantidade:
+                flash(f"Estoque insuficiente para a retirada. Disponível: {q_atual} {item['unidade_medida']}.", "error")
+                return redirect(url_for('main.almoxarifado'))
+            nova_q = q_atual - quantidade
+        elif tipo_movimentacao == 'Ajuste':
+            nova_q = quantidade
+        else:
+            flash("Tipo de movimentação inválido.", "error")
+            return redirect(url_for('main.almoxarifado'))
+            
+        db_execute("UPDATE consumiveis SET quantidade = :quantidade WHERE id = :id", {
+            'quantidade': nova_q,
+            'id': item_id
+        })
+        
+        db_execute("""
+            INSERT INTO consumiveis_historico (consumivel_id, tipo_movimentacao, quantidade, usuario, numero_chamado, detalhes)
+            VALUES (:consumivel_id, :tipo_movimentacao, :quantidade, :usuario, :numero_chamado, :detalhes)
+        """, {
+            'consumivel_id': item_id,
+            'tipo_movimentacao': tipo_movimentacao,
+            'quantidade': quantidade,
+            'usuario': current_user.username,
+            'numero_chamado': numero_chamado,
+            'detalhes': detalhes
+        })
+        
+        flash(f"Movimentação de {tipo_movimentacao} realizada com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao processar movimentação: {e}", "error")
+        
+    return redirect(url_for('main.almoxarifado'))
+
+
+@main_bp.route('/almoxarifado/historico')
+@login_required
+def almoxarifado_historico():
+    try:
+        historico = db_query("""
+            SELECT h.*, c.nome as consumivel_nome, c.unidade_medida
+            FROM consumiveis_historico h
+            JOIN consumiveis c ON h.consumivel_id = c.id
+            ORDER BY h.data_movimentacao DESC
+        """)
+        return render_template(
+            'almoxarifado_historico.html',
+            title="Histórico do Almoxarifado",
+            historico=historico
+        )
+    except Exception as e:
+        flash(f"Erro ao carregar histórico: {e}", "error")
+        return redirect(url_for('main.almoxarifado'))

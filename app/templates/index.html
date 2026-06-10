@@ -14,6 +14,16 @@
 </div>
 {% endif %}
 
+{% if data.almoxarifado_alerta_count > 0 %}
+<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg mb-6" role="alert">
+    <p class="font-bold">Alerta de Almoxarifado</p>
+    <p>
+        Você tem {{ data.almoxarifado_alerta_count }} item(ns) com estoque abaixo do limite mínimo. 
+        <a href="{{ url_for('main.almoxarifado') }}" class="font-bold underline hover:text-red-800">Clique aqui para ver e repor.</a>
+    </p>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
         <div class="bg-blue-500 text-white rounded-full p-3 mr-4">
@@ -77,6 +87,53 @@
             <li class="text-gray-500">Nenhum ativo com data de aquisição registrada.</li>
             {% endfor %}
         </ul>
+    </div>
+</div>
+
+<div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+        <h3 class="font-bold text-gray-700 mb-4">Estoque do Almoxarifado (Consumíveis)</h3>
+        {% if data.consumiveis_labels %}
+        <div style="position: relative; height: 320px;">
+            <canvas id="consumiveisChart"></canvas>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-16">Nenhum item cadastrado no almoxarifado para exibir no gráfico.</p>
+        {% endif %}
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between">
+        <div>
+            <h3 class="font-bold text-gray-700 mb-4">Resumo do Almoxarifado</h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <div class="flex items-center gap-2">
+                        <span class="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </span>
+                        <span class="text-sm text-gray-600 font-semibold">Total de Itens</span>
+                    </div>
+                    <span class="text-xl font-bold text-blue-700">{{ data.consumiveis_labels | length }}</span>
+                </div>
+                <div class="flex justify-between items-center p-4 bg-red-50 rounded-xl border border-red-100">
+                    <div class="flex items-center gap-2">
+                        <span class="p-2 bg-red-100 text-red-600 rounded-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </span>
+                        <span class="text-sm text-gray-600 font-semibold">Estoque Baixo / Crítico</span>
+                    </div>
+                    <span class="text-xl font-bold text-red-700">{{ data.almoxarifado_alerta_count }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="mt-6">
+            <a href="{{ url_for('main.almoxarifado') }}" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-sm transition-colors duration-150">
+                Ir para o Almoxarifado
+            </a>
+        </div>
     </div>
 </div>
 
@@ -183,6 +240,51 @@
                 }
             }
         });
+
+        // Gráfico do Almoxarifado (Consumíveis)
+        const consumiveisCanvas = document.getElementById('consumiveisChart');
+        if (consumiveisCanvas) {
+            const consumiveisCtx = consumiveisCanvas.getContext('2d');
+            new Chart(consumiveisCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ data.consumiveis_labels | tojson }},
+                    datasets: [
+                        {
+                            label: 'Estoque Atual',
+                            data: {{ data.consumiveis_quantidades | tojson }},
+                            backgroundColor: '#3B82F6',
+                            borderColor: '#2563EB',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Mínimo de Segurança',
+                            data: {{ data.consumiveis_minimos | tojson }},
+                            backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                            borderColor: '#EF4444',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
     });
 </script>
 {% endblock %}
