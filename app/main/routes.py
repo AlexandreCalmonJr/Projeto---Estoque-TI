@@ -185,6 +185,59 @@ def index():
             'em_uso': next((item['count'] for item in ativos_por_status if item['status'] == 'Em Uso'), 0),
             'em_manutencao': next((item['count'] for item in ativos_por_status if item['status'] == 'Em Manutenção'), 0),
         }
+
+        # --- CUSTOS DE MANUTENÇÃO PARA GRÁFICOS ---
+        # 1. Evolução Mensal dos Custos (Últimos 6 meses)
+        now = datetime.now()
+        months_labels = []
+        for i in range(5, -1, -1):
+            year = now.year
+            month = now.month - i
+            while month <= 0:
+                month += 12
+                year -= 1
+            months_labels.append(f"{year}-{month:02d}")
+
+        gasto_mensal_res = db_query("""
+            SELECT strftime('%Y-%m', data_fim) as mes, SUM(custo) as total
+            FROM manutencoes
+            WHERE status = 'Concluído'
+            GROUP BY mes
+        """)
+        custos_por_mes = {row['mes']: row['total'] for row in gasto_mensal_res if row['mes']}
+        monthly_costs_data = [custos_por_mes.get(m, 0.0) for m in months_labels]
+
+        # Formatar labels de meses para exibição amigável (Ex: "06/2026")
+        months_display_labels = []
+        for m in months_labels:
+            y, mo = m.split('-')
+            months_display_labels.append(f"{mo}/{y}")
+
+        # 2. Custos por Categoria
+        custos_categoria_res = db_query("""
+            SELECT c.nome as categoria, SUM(m_rec.custo) as total
+            FROM manutencoes m_rec
+            JOIN ativos a ON m_rec.id_ativo = a.id_ativo
+            JOIN categorias c ON a.categoria_id = c.id
+            WHERE m_rec.status = 'Concluído'
+            GROUP BY c.nome
+            ORDER BY total DESC
+        """)
+        category_cost_labels = [row['categoria'] for row in custos_categoria_res]
+        category_cost_data = [row['total'] for row in custos_categoria_res]
+
+        # 3. Custos por Marca
+        custos_marca_res = db_query("""
+            SELECT a.marca, SUM(m_rec.custo) as total
+            FROM manutencoes m_rec
+            JOIN ativos a ON m_rec.id_ativo = a.id_ativo
+            WHERE m_rec.status = 'Concluído'
+            GROUP BY a.marca
+            ORDER BY total DESC
+        """)
+        brand_cost_labels = [row['marca'] for row in custos_marca_res]
+        brand_cost_data = [row['total'] for row in custos_marca_res]
+
         dashboard_data = {
             'kpis': kpis,
             'status_labels': status_labels,
@@ -198,6 +251,12 @@ def index():
             'consumiveis_labels': [item['nome'] for item in consumiveis_list],
             'consumiveis_quantidades': [item['quantidade'] for item in consumiveis_list],
             'consumiveis_minimos': [item['estoque_minimo'] for item in consumiveis_list],
+            'monthly_costs_labels': months_display_labels,
+            'monthly_costs_data': monthly_costs_data,
+            'category_cost_labels': category_cost_labels,
+            'category_cost_data': category_cost_data,
+            'brand_cost_labels': brand_cost_labels,
+            'brand_cost_data': brand_cost_data,
         }
     except Exception as e:
         flash(f"Ocorreu um erro ao carregar os dados do dashboard: {e}", "error")
@@ -214,6 +273,12 @@ def index():
             'consumiveis_labels': [],
             'consumiveis_quantidades': [],
             'consumiveis_minimos': [],
+            'monthly_costs_labels': [],
+            'monthly_costs_data': [],
+            'category_cost_labels': [],
+            'category_cost_data': [],
+            'brand_cost_labels': [],
+            'brand_cost_data': [],
         }
         todas_categorias, todos_modelos, filtros_selecionados = [], [], {}
 
@@ -275,12 +340,18 @@ def detalhes_ativo(id_ativo):
     )
     termo = termo[0] if termo else None
 
+    manutencoes = db_query(
+        "SELECT * FROM manutencoes WHERE id_ativo = :id_ativo ORDER BY data_inicio DESC",
+        {'id_ativo': id_ativo}
+    )
+
     return render_template(
         "detalhes_ativo.html",
         title=f"Detalhes: {ativo_list[0]['id_ativo']}",
         ativo=ativo_list[0],
         historico=historico,
         termo=termo,
+        manutencoes=manutencoes,
         document_templates=_document_templates(),
     )
 
@@ -288,21 +359,181 @@ def detalhes_ativo(id_ativo):
 @main_bp.route('/manutencao')
 @login_required
 def manutencao():
+    # 1. Ativos em Manutenção
     ativos_manutencao = db_query("""
-        SELECT a.id_ativo, a.numero_serie, a.marca, m.nome as modelo, c.nome as categoria, h.timestamp as data_evento
+        SELECT a.id_ativo, a.numero_serie, a.marca, m.nome as modelo, c.nome as categoria,
+               m_rec.data_inicio, m_rec.numero_chamado, m_rec.id as manutencao_id
         FROM ativos a
         JOIN modelos m ON a.modelo_id = m.id
         JOIN categorias c ON a.categoria_id = c.id
         LEFT JOIN (
-            SELECT id_ativo, MAX(timestamp) as timestamp
-            FROM historico
-            WHERE evento = 'Movimentação' AND detalhes LIKE '%Em Manutenção%'
-            GROUP BY id_ativo
-        ) h ON a.id_ativo = h.id_ativo
+            SELECT id, id_ativo, data_inicio, numero_chamado
+            FROM manutencoes
+            WHERE status = 'Em Manutenção'
+        ) m_rec ON a.id_ativo = m_rec.id_ativo
         WHERE a.status = 'Em Manutenção'
-        ORDER BY h.timestamp DESC
+        ORDER BY m_rec.data_inicio DESC
     """)
-    return render_template("manutencao.html", title="Ativos em Manutenção", ativos=ativos_manutencao)
+
+    # 2. Histórico de Manutenções (Concluídas)
+    historico_manutencoes = db_query("""
+        SELECT m_rec.id as manutencao_id, m_rec.id_ativo, m_rec.numero_chamado, m_rec.data_inicio, m_rec.data_fim,
+               m_rec.custo, m_rec.pecas_substituidas, m_rec.descricao,
+               a.marca, m.nome as modelo, c.nome as categoria
+        FROM manutencoes m_rec
+        JOIN ativos a ON m_rec.id_ativo = a.id_ativo
+        JOIN modelos m ON a.modelo_id = m.id
+        JOIN categorias c ON a.categoria_id = c.id
+        WHERE m_rec.status = 'Concluído'
+        ORDER BY m_rec.data_fim DESC
+    """)
+
+    # 3. KPIs Financeiros e Quantidades
+    current_month = datetime.now().strftime('%Y-%m')
+    
+    # Total gasto no mês
+    gasto_mes_res = db_query("""
+        SELECT SUM(custo) as total FROM manutencoes
+        WHERE status = 'Concluído' AND strftime('%Y-%m', data_fim) = :current_month
+    """, {'current_month': current_month})
+    gasto_mes = gasto_mes_res[0]['total'] if gasto_mes_res and gasto_mes_res[0]['total'] is not None else 0.0
+
+    # Total gasto geral
+    gasto_geral_res = db_query("""
+        SELECT SUM(custo) as total FROM manutencoes
+        WHERE status = 'Concluído'
+    """)
+    gasto_geral = gasto_geral_res[0]['total'] if gasto_geral_res and gasto_geral_res[0]['total'] is not None else 0.0
+
+    # Ativos em reparo
+    ativos_em_reparo = len(ativos_manutencao)
+
+    # Marca/Modelo crítico
+    critico_res = db_query("""
+        SELECT a.marca, m.nome as modelo, SUM(m_rec.custo) as total_custo
+        FROM manutencoes m_rec
+        JOIN ativos a ON m_rec.id_ativo = a.id_ativo
+        JOIN modelos m ON a.modelo_id = m.id
+        WHERE m_rec.status = 'Concluído'
+        GROUP BY a.marca, m.nome
+        ORDER BY total_custo DESC LIMIT 1
+    """)
+    critico = f"{critico_res[0]['marca']} {critico_res[0]['modelo']}" if critico_res else "Nenhum"
+
+    kpis = {
+        'gasto_mes': gasto_mes,
+        'gasto_geral': gasto_geral,
+        'ativos_em_reparo': ativos_em_reparo,
+        'critico': critico
+    }
+
+    return render_template(
+        "manutencao.html",
+        title="Controle de Manutenção & Custos",
+        ativos=ativos_manutencao,
+        historico=historico_manutencoes,
+        kpis=kpis
+    )
+
+
+@main_bp.route('/ativo/<id_ativo>/concluir_manutencao', methods=['POST'])
+@login_required
+def concluir_manutencao(id_ativo):
+    try:
+        custo_raw = request.form.get('custo', '0').strip().replace(',', '.')
+        try:
+            custo = float(custo_raw)
+        except ValueError:
+            custo = 0.0
+
+        pecas = request.form.get('pecas_substituidas', '').strip()
+        descricao = request.form.get('descricao', '').strip()
+        novo_status = _normalize_status(request.form.get('novo_status', 'Em Estoque').strip())
+
+        if novo_status not in ['Em Estoque', 'Em Uso']:
+            novo_status = 'Em Estoque'
+
+        # Busca registro ativo de manutenção
+        manutencao_list = db_query("""
+            SELECT id, numero_chamado FROM manutencoes
+            WHERE id_ativo = :id_ativo AND status = 'Em Manutenção'
+            ORDER BY id DESC LIMIT 1
+        """, {'id_ativo': id_ativo})
+
+        if manutencao_list:
+            manut_id = manutencao_list[0]['id']
+            chamado = manutencao_list[0]['numero_chamado']
+            
+            db_execute("""
+                UPDATE manutencoes
+                SET data_fim = :data_fim, custo = :custo, pecas_substituidas = :pecas, descricao = :descricao, status = 'Concluído'
+                WHERE id = :id
+            """, {
+                'data_fim': datetime.now().strftime('%Y-%m-%d'),
+                'custo': custo,
+                'pecas': pecas,
+                'descricao': descricao,
+                'id': manut_id
+            })
+        else:
+            # Caso legado: cria e conclui na hora
+            chamado = request.form.get('numero_chamado', 'LEGADO').strip() or 'LEGADO'
+            db_execute("""
+                INSERT INTO manutencoes (id_ativo, numero_chamado, data_inicio, data_fim, custo, pecas_substituidas, descricao, status)
+                VALUES (:id_ativo, :chamado, :hoje, :hoje, :custo, :pecas, :descricao, 'Concluído')
+            """, {
+                'id_ativo': id_ativo,
+                'chamado': chamado,
+                'hoje': datetime.now().strftime('%Y-%m-%d'),
+                'custo': custo,
+                'pecas': pecas,
+                'descricao': descricao
+            })
+
+        # Altera o status do ativo
+        manager.movimentar(id_ativo, novo_status, chamado)
+
+        # Log do histórico geral
+        log_detalhes = f"Manutenção concluída (Chamado: {chamado}). Custo: R$ {custo:.2f}. Peças: {pecas or 'Nenhuma'}. Descrição: {descricao or 'Nenhuma'}."
+        db_execute("""
+            INSERT INTO historico (id_ativo, evento, detalhes)
+            VALUES (:id_ativo, 'Movimentação', :detalhes)
+        """, {'id_ativo': id_ativo, 'detalhes': log_detalhes})
+
+        flash('Manutenção concluída com sucesso!', 'success')
+        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
+    except Exception as e:
+        flash(f"Erro ao concluir manutenção: {e}", 'error')
+        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
+
+
+@main_bp.route('/manutencao/excluir/<int:id>', methods=['POST'])
+@login_required
+def excluir_manutencao(id):
+    try:
+        if not current_user.is_admin:
+            flash('Apenas administradores podem excluir registros de manutenção.', 'error')
+            return redirect(url_for('main.manutencao'))
+
+        res = db_query("SELECT id_ativo FROM manutencoes WHERE id = :id", {'id': id})
+        if not res:
+            flash('Registro de manutenção não encontrado.', 'error')
+            return redirect(url_for('main.manutencao'))
+            
+        id_ativo = res[0]['id_ativo']
+        
+        db_execute("DELETE FROM manutencoes WHERE id = :id", {'id': id})
+        
+        db_execute("""
+            INSERT INTO historico (id_ativo, evento, detalhes)
+            VALUES (:id_ativo, 'Movimentação', 'Registro de manutenção excluído pelo administrador.')
+        """, {'id_ativo': id_ativo})
+
+        flash('Registro de manutenção excluído com sucesso!', 'success')
+    except Exception as e:
+        flash(f"Erro ao excluir manutenção: {e}", 'error')
+        
+    return redirect(url_for('main.manutencao'))
 
 
 @main_bp.route('/relatorios')
@@ -497,8 +728,28 @@ def movimentar_ativo(id_ativo):
         flash('Status inválido para movimentação.', 'error')
         return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
 
+    # Impede mover o ativo para fora de manutenção por esta rota simples
+    ativo_list = db_query("SELECT status FROM ativos WHERE id_ativo = :id_ativo", {'id_ativo': id_ativo})
+    if ativo_list and ativo_list[0]['status'] == 'Em Manutenção' and novo_status != 'Em Manutenção':
+        flash('Para retirar o ativo de manutenção, utilize a opção "Concluir Manutenção" para registrar os custos e detalhes do reparo.', 'error')
+        return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
+
     chamado = request.form.get('numero_chamado', '').strip()
     manager.movimentar(id_ativo, novo_status, chamado)
+
+    if novo_status == 'Em Manutenção':
+        # Evitar duplicar registros ativos de manutenção
+        existing = db_query("SELECT id FROM manutencoes WHERE id_ativo = :id_ativo AND status = 'Em Manutenção'", {'id_ativo': id_ativo})
+        if not existing:
+            db_execute("""
+                INSERT INTO manutencoes (id_ativo, numero_chamado, data_inicio, status)
+                VALUES (:id_ativo, :chamado, :data_inicio, 'Em Manutenção')
+            """, {
+                'id_ativo': id_ativo,
+                'chamado': chamado,
+                'data_inicio': datetime.now().strftime('%Y-%m-%d')
+            })
+
     flash(f'Status do ativo alterado para "{novo_status}" com sucesso!', 'success')
     return redirect(url_for('main.detalhes_ativo', id_ativo=id_ativo))
 

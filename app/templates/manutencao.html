@@ -1,36 +1,266 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
-    <table class="w-full text-left">
-        <thead class="bg-gray-100">
-            <tr>
-                <th class="p-4 font-bold text-gray-600">Patrimônio</th>
-                <th class="p-4 font-bold text-gray-600">Categoria</th>
-                <th class="p-4 font-bold text-gray-600">Modelo</th>
-                <th class="p-4 font-bold text-gray-600">Nº de Série</th>
-                <th class="p-4 font-bold text-gray-600">Data de Envio</th>
-                <th class="p-4 font-bold text-gray-600">Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ativo in ativos %}
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-4 text-gray-900 font-medium">{{ ativo.id_ativo }}</td>
-                <td class="p-4 text-gray-700">{{ ativo.categoria }}</td>
-                <td class="p-4 text-gray-700">{{ ativo.modelo }}</td>
-                <td class="p-4 text-gray-700">{{ ativo.numero_serie }}</td>
-                <td class="p-4 text-gray-700">{{ ativo.data_evento or 'Não registrado' }}</td>
-                <td class="p-4">
-                    <a href="{{ url_for('main.detalhes_ativo', id_ativo=ativo.id_ativo) }}" class="text-blue-600 hover:underline font-semibold">Ver Detalhes</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="p-4 text-center text-gray-500">Nenhum ativo em manutenção no momento.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endblock %}
 
+<!-- KPI Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex items-center">
+        <div class="bg-red-500 text-white rounded-lg p-3 mr-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500 uppercase font-semibold">Ativos em Reparo</p>
+            <p class="text-2xl font-bold text-gray-800">{{ kpis.ativos_em_reparo }}</p>
+        </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex items-center">
+        <div class="bg-yellow-500 text-white rounded-lg p-3 mr-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 16c1.11 0 2.08.402 2.599 1M12 16V17"></path>
+            </svg>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500 uppercase font-semibold">Gasto (Este Mês)</p>
+            <p class="text-2xl font-bold text-gray-800">R$ {{ "%.2f"|format(kpis.gasto_mes) }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex items-center">
+        <div class="bg-green-500 text-white rounded-lg p-3 mr-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+            </svg>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500 uppercase font-semibold">Gasto Acumulado</p>
+            <p class="text-2xl font-bold text-gray-800">R$ {{ "%.2f"|format(kpis.gasto_geral) }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex items-center">
+        <div class="bg-blue-500 text-white rounded-lg p-3 mr-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500 uppercase font-semibold">Marca mais Crítica</p>
+            <p class="text-sm font-bold text-gray-800 truncate" title="{{ kpis.critico }}">{{ kpis.critico }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs Navigation -->
+<div class="bg-white rounded-xl shadow-md overflow-hidden">
+    <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+            <button onclick="switchTab('active')" id="btn-tab-active" class="border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600">
+                Ativos em Reparo ({{ ativos|length }})
+            </button>
+            <button onclick="switchTab('history')" id="btn-tab-history" class="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                Histórico de Manutenções ({{ historico|length }})
+            </button>
+        </nav>
+    </div>
+
+    <!-- Active Maintenance Tab -->
+    <div id="tab-active" class="p-6">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Patrimônio</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Categoria</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Modelo / Marca</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Nº de Série</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Data de Envio</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Chamado</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ativo in ativos %}
+                    <tr class="border-b hover:bg-gray-50 text-sm">
+                        <td class="p-4 text-gray-900 font-semibold">{{ ativo.id_ativo }}</td>
+                        <td class="p-4 text-gray-700">{{ ativo.categoria }}</td>
+                        <td class="p-4 text-gray-700">{{ ativo.marca }} / {{ ativo.modelo }}</td>
+                        <td class="p-4 text-gray-500 font-mono text-xs">{{ ativo.numero_serie }}</td>
+                        <td class="p-4 text-gray-700">{{ ativo.data_inicio or 'Não registrado' }}</td>
+                        <td class="p-4">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                #{{ ativo.numero_chamado or 'N/A' }}
+                            </span>
+                        </td>
+                        <td class="p-4 flex items-center space-x-3">
+                            <button onclick="openConcluirModal('{{ ativo.id_ativo }}', '{{ ativo.numero_chamado or '' }}')" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow transition">
+                                Concluir
+                            </button>
+                            <a href="{{ url_for('main.detalhes_ativo', id_ativo=ativo.id_ativo) }}" class="text-blue-600 hover:underline font-semibold text-xs">
+                                Detalhes
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-gray-500">Nenhum ativo em manutenção no momento.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- History Tab (Hidden by default) -->
+    <div id="tab-history" class="p-6 hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Patrimônio</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Categoria</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Modelo</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Período</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Chamado</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Custo (R$)</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Peças Substituídas</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Descrição</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in historico %}
+                    <tr class="border-b hover:bg-gray-50 text-sm">
+                        <td class="p-4 text-gray-900 font-semibold">{{ item.id_ativo }}</td>
+                        <td class="p-4 text-gray-700">{{ item.categoria }}</td>
+                        <td class="p-4 text-gray-700">{{ item.marca }} / {{ item.modelo }}</td>
+                        <td class="p-4 text-gray-500 text-xs">
+                            {{ item.data_inicio }} a {{ item.data_fim }}
+                        </td>
+                        <td class="p-4">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                                #{{ item.numero_chamado or 'N/A' }}
+                            </span>
+                        </td>
+                        <td class="p-4 text-gray-900 font-bold text-right pr-8">
+                            R$ {{ "%.2f"|format(item.custo) }}
+                        </td>
+                        <td class="p-4 text-gray-600 text-xs max-w-xs truncate" title="{{ item.pecas_substituidas }}">
+                            {{ item.pecas_substituidas or 'Nenhuma' }}
+                        </td>
+                        <td class="p-4 text-gray-600 text-xs max-w-xs truncate" title="{{ item.descricao }}">
+                            {{ item.descricao or 'Nenhuma' }}
+                        </td>
+                        <td class="p-4 flex items-center space-x-3">
+                            <a href="{{ url_for('main.detalhes_ativo', id_ativo=item.id_ativo) }}" class="text-blue-600 hover:underline font-semibold text-xs">
+                                Detalhes
+                            </a>
+                            {% if current_user.is_admin %}
+                            <form action="{{ url_for('main.excluir_manutencao', id=item.manutencao_id) }}" method="POST" onsubmit="return confirm('Deseja realmente deletar permanentemente este registro do histórico financeiro?');" class="inline">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="text-red-500 hover:text-red-700 text-xs font-semibold">Excluir</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="p-8 text-center text-gray-500">Nenhum registro de manutenção finalizado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Concluir Manutenção -->
+<div id="concluir-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 transition-all duration-300">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up">
+        <div class="bg-blue-600 text-white p-5 flex justify-between items-center">
+            <h3 class="text-lg font-bold">Concluir Registro de Manutenção</h3>
+            <button onclick="closeConcluirModal()" class="text-white hover:text-gray-200">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="concluir-form" method="POST" class="p-6 space-y-4">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="id_ativo" id="concluir-id-ativo">
+            
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-1">Chamado Associado</label>
+                <input type="text" id="concluir-chamado-display" readonly class="w-full p-2.5 border rounded-lg bg-gray-100 text-gray-600 text-sm focus:outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="custo" class="block text-gray-700 text-sm font-bold mb-1">Custo Total (R$)</label>
+                    <input type="number" step="0.01" min="0" name="custo" id="custo" placeholder="0.00" class="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div>
+                    <label for="novo_status" class="block text-gray-700 text-sm font-bold mb-1">Destinar Ativo Para</label>
+                    <select name="novo_status" id="novo_status" class="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                        <option value="Em Estoque" selected>Estoque (Disponível)</option>
+                        <option value="Em Uso">Uso (Atribuído/Em operação)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="pecas_substituidas" class="block text-gray-700 text-sm font-bold mb-1">Peças Substituídas</label>
+                <input type="text" name="pecas_substituidas" id="pecas_substituidas" placeholder="Ex: SSD 240GB, Memória RAM 8GB" class="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label for="descricao" class="block text-gray-700 text-sm font-bold mb-1">Descrição do Serviço</label>
+                <textarea name="descricao" id="descricao" rows="3" placeholder="Detalhes do reparo feito..." class="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4 border-t">
+                <button type="button" onclick="closeConcluirModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition text-sm">
+                    Cancelar
+                </button>
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition text-sm shadow">
+                    Salvar & Concluir
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function switchTab(tabId) {
+    if (tabId === 'active') {
+        document.getElementById('tab-active').classList.remove('hidden');
+        document.getElementById('tab-history').classList.add('hidden');
+        document.getElementById('btn-tab-active').className = "border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600";
+        document.getElementById('btn-tab-history').className = "border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    } else {
+        document.getElementById('tab-active').classList.add('hidden');
+        document.getElementById('tab-history').classList.remove('hidden');
+        document.getElementById('btn-tab-active').className = "border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300";
+        document.getElementById('btn-tab-history').className = "border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600";
+    }
+}
+
+function openConcluirModal(idAtivo, chamado) {
+    document.getElementById('concluir-id-ativo').value = idAtivo;
+    document.getElementById('concluir-chamado-display').value = chamado ? '#' + chamado : 'Não informado';
+    document.getElementById('concluir-form').action = "/ativo/" + idAtivo + "/concluir_manutencao";
+    
+    const modal = document.getElementById('concluir-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeConcluirModal() {
+    const modal = document.getElementById('concluir-modal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    document.getElementById('concluir-form').reset();
+}
+</script>
+
+{% endblock %}

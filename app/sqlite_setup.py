@@ -129,6 +129,21 @@ def setup_database_logic():
                 );
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS manutencoes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_ativo TEXT NOT NULL,
+                    numero_chamado TEXT,
+                    data_inicio DATE NOT NULL,
+                    data_fim DATE,
+                    custo REAL DEFAULT 0.0 NOT NULL,
+                    pecas_substituidas TEXT,
+                    descricao TEXT,
+                    status TEXT NOT NULL DEFAULT 'Em Manutenção',
+                    FOREIGN KEY (id_ativo) REFERENCES ativos (id_ativo)
+                );
+            """)
+
             cursor.execute("SELECT COUNT(*) FROM categorias")
             if cursor.fetchone()[0] == 0:
                 categorias_padrao = [
