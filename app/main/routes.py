@@ -321,11 +321,15 @@ def relatorios():
         ORDER BY c.nome, m.nome
     """, params)
 
+    consumiveis = db_query("SELECT * FROM consumiveis ORDER BY nome")
+
     return render_template(
         "relatorio_geral.html",
-        title="Relatório Geral de Ativos",
+        title="Relatório Geral de TI",
         ativos=ativos,
         total=len(ativos),
+        consumiveis=consumiveis,
+        total_consumiveis=len(consumiveis),
         data_geracao=datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
         todas_categorias=todas_categorias,
         todos_modelos=todos_modelos,

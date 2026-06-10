@@ -25,7 +25,7 @@
     <div class="max-w-4xl mx-auto bg-white p-10 rounded shadow">
         <div class="flex justify-between items-center border-b pb-4 mb-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Relatório Geral de Ativos</h1>
+                <h1 class="text-2xl font-bold text-gray-800">Relatório Geral de TI</h1>
                 <p class="text-gray-500">Base de Dados: <span class="font-semibold">{{ session.get('database_name', 'N/A') }}</span></p>
             </div>
             <div class="text-right">
@@ -39,11 +39,13 @@
         </div>
         
         <div id="print-area">
-            <div class="mb-6 text-center">
-                <p class="text-lg">Total de Ativos (Filtrado): <span class="font-bold text-2xl text-blue-600">{{ total }}</span></p>
+            <!-- Seção de Ativos -->
+            <div class="mb-4 mt-6 pb-2 border-b">
+                <h2 class="text-xl font-bold text-gray-800">1. Ativos de TI</h2>
+                <p class="text-sm text-gray-500">Total de Ativos (Filtrado): <span class="font-bold text-blue-600">{{ total }}</span></p>
             </div>
 
-            <table class="w-full text-left text-sm">
+            <table class="w-full text-left text-sm mb-12">
                 <thead class="bg-gray-100">
                     <tr>
                         <th class="p-3 font-bold text-gray-600">Patrimônio</th>
@@ -65,6 +67,47 @@
                     {% else %}
                     <tr>
                         <td colspan="5" class="p-3 text-center text-gray-500">Nenhum ativo encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Seção de Almoxarifado -->
+            <div class="mb-4 pb-2 border-b">
+                <h2 class="text-xl font-bold text-gray-800">2. Consumíveis (Almoxarifado)</h2>
+                <p class="text-sm text-gray-500">Total de Consumíveis Cadastrados: <span class="font-bold text-blue-600">{{ total_consumiveis }}</span></p>
+            </div>
+
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-3 font-bold text-gray-600">Nome do Item</th>
+                        <th class="p-3 font-bold text-gray-600">Estoque</th>
+                        <th class="p-3 font-bold text-gray-600">Estoque Mínimo</th>
+                        <th class="p-3 font-bold text-gray-600">Localização</th>
+                        <th class="p-3 font-bold text-gray-600">Fornecedor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in consumiveis %}
+                    {% set alerta = item.quantidade <= item.estoque_minimo %}
+                    <tr class="border-b clickable-row {% if alerta %}bg-red-50/50 text-red-900{% endif %}" onclick="window.location.href='{{ url_for('main.almoxarifado_item_detalhes', item_id=item.id) }}';">
+                        <td class="p-3 font-semibold">
+                            {{ item.nome }}
+                            {% if alerta %}
+                            <span class="ml-1 text-xs text-red-600 font-bold uppercase tracking-wide">(Estoque Baixo)</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 font-bold {% if alerta %}text-red-600{% endif %}">
+                            {{ item.quantidade }} <span class="text-xs text-gray-500 font-normal">{{ item.unidade_medida }}s</span>
+                        </td>
+                        <td class="p-3 text-gray-500">{{ item.estoque_minimo }} {{ item.unidade_medida }}s</td>
+                        <td class="p-3 text-gray-700">{{ item.localizacao or '-' }}</td>
+                        <td class="p-3 text-gray-700">{{ item.fornecedor or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="p-3 text-center text-gray-500">Nenhum consumível cadastrado no almoxarifado.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -1,42 +1,96 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-bold mb-4">Importar Ativos de Arquivo</h3>
-        <p class="text-gray-600 mb-4">
-            Selecione um arquivo CSV ou Excel (.xlsx) para importar múltiplos ativos de uma vez.
-        </p>
-        <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <div class="mb-4">
-                <label for="file" class="block text-gray-700 text-sm font-bold mb-2">Arquivo:</label>
-                <input type="file" name="file" id="file" required
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-full file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-blue-50 file:text-blue-700
-                              hover:file:bg-blue-100"
-                       accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-            </div>
-            <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors">
-                Importar Arquivo
-            </button>
-        </form>
+<div class="max-w-6xl mx-auto mb-8 space-y-8">
+    <div class="border-b pb-4">
+        <h1 class="text-3xl font-extrabold text-gray-800">Importação de Dados</h1>
+        <p class="text-sm text-gray-500 mt-1">Carregue dados em lote por planilhas CSV ou Excel para agilizar o cadastro de itens no sistema.</p>
     </div>
-    <div class="bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-bold mb-4">Instruções e Formato do Arquivo</h3>
-        <p class="mb-2">O arquivo deve conter um cabeçalho com os nomes das colunas. As colunas essenciais são:</p>
-        <ul class="list-disc list-inside bg-gray-50 p-4 rounded">
-            <li><strong>ATIVO</strong> ou <strong>categoria</strong> (Obrigatório)</li>
-            <li><strong>FABRICANTE</strong> ou <strong>marca</strong> (Obrigatório)</li>
-            <li><strong>MODELO</strong> (Obrigatório, pode ser genérico)</li>
-            <li><strong>Nº SERIE</strong> ou <strong>numero_serie</strong> (Opcional)</li>
-            <li><strong>QUANTIDADE</strong> (Opcional, padrão '1')</li>
-        </ul>
-        <p class="mt-4 text-sm text-gray-600">
-            <strong>Atenção:</strong> Se o "Nº SERIE" não for fornecido, o sistema gerará um serial provisório. Se a `QUANTIDADE` for maior que 1, o sistema criará a quantidade correspondente de itens com seriais únicos.
-        </p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- 1. Importar Ativos -->
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col justify-between">
+            <div>
+                <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4 flex items-center gap-2">
+                    <span class="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </span>
+                    Importar Ativos de TI
+                </h3>
+                <p class="text-gray-600 text-sm mb-6">
+                    Cadastre novos computadores, monitores, switches ou outros hardwares serializados em lote.
+                </p>
+                <form method="POST" action="{{ url_for('main.importar_ativos') }}" enctype="multipart/form-data" class="space-y-4">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Selecione o Arquivo (CSV, XLSX)</label>
+                        <input type="file" name="file" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-150">
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-xs text-gray-600 space-y-2">
+                        <p class="font-semibold text-gray-700 uppercase tracking-wider text-[10px]">Colunas Obrigatórias:</p>
+                        <ul class="list-disc list-inside space-y-1 font-mono">
+                            <li><strong class="text-gray-800">categoria</strong> (ou ativo)</li>
+                            <li><strong class="text-gray-800">marca</strong> (ou fabricante)</li>
+                            <li><strong class="text-gray-800">modelo</strong></li>
+                        </ul>
+                        <p class="font-semibold text-gray-700 uppercase tracking-wider text-[10px] pt-1">Colunas Opcionais:</p>
+                        <ul class="list-disc list-inside space-y-1 font-mono">
+                            <li>numero_serie (ou nº serie), quantidade, fornecedor, localizacao, nota_fiscal, cpu, ram_gb, armazenamento_gb, sistema_operacional</li>
+                        </ul>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow transition">
+                        Importar Ativos
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 2. Importar Consumíveis (Almoxarifado) -->
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col justify-between">
+            <div>
+                <h3 class="text-xl font-bold text-gray-800 border-b pb-3 mb-4 flex items-center gap-2">
+                    <span class="p-2 bg-green-100 text-green-600 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                    </span>
+                    Importar Consumíveis (Almoxarifado)
+                </h3>
+                <p class="text-gray-600 text-sm mb-6">
+                    Cadastre novos consumíveis de TI/Escritório (cabos, mouses, toners) ou atualize a quantidade de itens já existentes.
+                </p>
+                <form method="POST" action="{{ url_for('main.almoxarifado_importar') }}" enctype="multipart/form-data" class="space-y-4">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Selecione o Arquivo (CSV, XLSX)</label>
+                        <input type="file" name="file" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition duration-150">
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-xs text-gray-600 space-y-2">
+                        <p class="font-semibold text-gray-700 uppercase tracking-wider text-[10px]">Colunas Obrigatórias:</p>
+                        <ul class="list-disc list-inside space-y-1 font-mono">
+                            <li><strong class="text-gray-800">nome</strong></li>
+                        </ul>
+                        <p class="font-semibold text-gray-700 uppercase tracking-wider text-[10px] pt-1">Colunas Opcionais:</p>
+                        <ul class="list-disc list-inside space-y-1 font-mono">
+                            <li>quantidade, unidade_medida, estoque_minimo, localizacao, fornecedor, observacoes</li>
+                        </ul>
+                        <p class="text-[10px] text-blue-700 bg-blue-50 p-2 rounded leading-relaxed">
+                            <strong>Nota:</strong> Se o item com o mesmo nome já existir, a quantidade importada será <strong>somada</strong> ao estoque atual.
+                        </p>
+                    </div>
+
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg shadow transition">
+                        Importar Consumíveis
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
