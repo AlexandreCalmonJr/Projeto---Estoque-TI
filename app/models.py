@@ -163,7 +163,59 @@ class AssetManager:
         ).scalar_one()
         return f"{prefixo}{(max_seq or 0) + 1 + offset:03d}"
 
-    def registrar_novo_ativo(self, form_data):
+    def _handle_temp_photo(self, temp_foto_path, id_ativo):
+        """Copia a foto temporária para o local final baseado no id_ativo e retorna o nome do arquivo."""
+        import os
+        import shutil
+        if not temp_foto_path or not os.path.exists(temp_foto_path):
+            return None
+        
+        ext = os.path.splitext(temp_foto_path)[1].lower()
+        sanitized_id = "".join(c for c in id_ativo if c.isalnum() or c in ('-', '_')).strip()
+        target_filename = f"{sanitized_id}{ext}"
+        
+        from config import basedir
+        ativos_dir = os.path.join(basedir, 'uploads', 'ativos')
+        os.makedirs(ativos_dir, exist_ok=True)
+        
+        target_path = os.path.join(ativos_dir, target_filename)
+        shutil.copy(temp_foto_path, target_path)
+        return target_filename
+
+    def _rename_photo(self, old_filename, new_id_ativo):
+        import os
+        import shutil
+        if not old_filename:
+            return None
+        from config import basedir
+        ativos_dir = os.path.join(basedir, 'uploads', 'ativos')
+        old_path = os.path.join(ativos_dir, old_filename)
+        if not os.path.exists(old_path):
+            return None
+            
+        ext = os.path.splitext(old_filename)[1].lower()
+        sanitized_id = "".join(c for c in new_id_ativo if c.isalnum() or c in ('-', '_')).strip()
+        new_filename = f"{sanitized_id}{ext}"
+        new_path = os.path.join(ativos_dir, new_filename)
+        
+        if old_path != new_path:
+            shutil.move(old_path, new_path)
+        return new_filename
+
+    def _delete_photo(self, filename):
+        import os
+        if not filename:
+            return
+        from config import basedir
+        ativos_dir = os.path.join(basedir, 'uploads', 'ativos')
+        path = os.path.join(ativos_dir, filename)
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception as e:
+                print(f"Erro ao deletar foto {path}: {e}")
+
+    def registrar_novo_ativo(self, form_data, temp_foto_path=None):
         engine = get_asset_db_engine()
         quantidade = self._get_positive_int(form_data, 'quantidade', 1)
         categoria_id = self._require_text(form_data, 'categoria', 'categoria')
@@ -196,18 +248,22 @@ class AssetManager:
                 if result_sn.first():
                     raise ValueError(f"O Número de Série '{numero_serie}' já está cadastrado.")
 
+                final_foto_path = None
+                if temp_foto_path:
+                    final_foto_path = self._handle_temp_photo(temp_foto_path, id_ativo)
+
                 sql = """
                     INSERT INTO ativos (
                         id_ativo, numero_serie, marca, modelo_id, categoria_id, status,
                         nota_fiscal, fornecedor, data_aquisicao, localizacao,
                         usuario_responsavel, destino, cpu, ram_gb, armazenamento_gb,
-                        sistema_operacional, data_garantia
+                        sistema_operacional, data_garantia, foto_path
                     )
                     VALUES (
                         :id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id,
                         'Em Estoque', :nota_fiscal, :fornecedor, :data_aquisicao,
                         :localizacao, NULL, :destino, :cpu, :ram_gb,
-                        :armazenamento_gb, :sistema_operacional, :data_garantia
+                        :armazenamento_gb, :sistema_operacional, :data_garantia, :foto_path
                     )
                 """
                 params = {
@@ -226,9 +282,18 @@ class AssetManager:
                     'armazenamento_gb': self._optional_int(form_data, 'armazenamento_gb'),
                     'sistema_operacional': self._get_text(form_data, 'sistema_operacional') or None,
                     'data_garantia': self._get_text(form_data, 'data_garantia') or None,
+                    'foto_path': final_foto_path,
                 }
                 conn.execute(text(sql), params)
                 self._log_event(id_ativo, "Criação", "Ativo cadastrado e movido para o estoque.", conn)
+
+        # Remove arquivo temporário se ainda existir
+        import os
+        if temp_foto_path and os.path.exists(temp_foto_path):
+            try:
+                os.remove(temp_foto_path)
+            except Exception as e:
+                print(f"Erro ao remover arquivo temporario de foto: {e}")
 
     def atualizar_lote_ativos(self, form_data):
         engine = get_asset_db_engine()
@@ -315,14 +380,14 @@ class AssetManager:
     def baixar(self, id_ativo, chamado):
         self.movimentar(id_ativo, 'Descartado', chamado)
 
-    def atualizar_ativo(self, id_ativo_original, form_data):
+    def atualizar_ativo(self, id_ativo_original, form_data, temp_foto_path=None, remover_foto=False):
         engine = get_asset_db_engine()
         novo_id_ativo = self._require_text(form_data, 'id_ativo', 'patrimônio')
         novo_numero_serie = self._require_text(form_data, 'numero_serie', 'número de série')
 
         with engine.begin() as conn:
             current = conn.execute(
-                text("SELECT id, id_ativo, numero_serie FROM ativos WHERE id_ativo = :id_ativo"),
+                text("SELECT id, id_ativo, numero_serie, foto_path FROM ativos WHERE id_ativo = :id_ativo"),
                 {'id_ativo': id_ativo_original},
             ).first()
             if not current:
@@ -343,6 +408,20 @@ class AssetManager:
             if result.first():
                 raise ValueError(f"O Número de Série '{novo_numero_serie}' já pertence a outro ativo.")
 
+            resolved_foto_path = current['foto_path']
+
+            import os
+            if remover_foto:
+                if resolved_foto_path:
+                    self._delete_photo(resolved_foto_path)
+                resolved_foto_path = None
+            elif temp_foto_path:
+                if resolved_foto_path:
+                    self._delete_photo(resolved_foto_path)
+                resolved_foto_path = self._handle_temp_photo(temp_foto_path, novo_id_ativo)
+            elif id_ativo_original != novo_id_ativo and resolved_foto_path:
+                resolved_foto_path = self._rename_photo(resolved_foto_path, novo_id_ativo)
+
             sql = """
                 UPDATE ativos SET
                     id_ativo = :id_ativo,
@@ -354,7 +433,8 @@ class AssetManager:
                     fornecedor = :fornecedor,
                     data_aquisicao = :data_aquisicao,
                     destino = :destino,
-                    data_garantia = :data_garantia
+                    data_garantia = :data_garantia,
+                    foto_path = :foto_path
                 WHERE id = :db_id
             """
             params = {
@@ -368,6 +448,7 @@ class AssetManager:
                 'data_aquisicao': self._get_text(form_data, 'data_aquisicao') or None,
                 'destino': self._get_text(form_data, 'destino') or None,
                 'data_garantia': self._get_text(form_data, 'data_garantia') or None,
+                'foto_path': resolved_foto_path,
                 'db_id': current['id'],
             }
             conn.execute(text(sql), params)
@@ -382,7 +463,15 @@ class AssetManager:
                 detalhes = "Dados cadastrais atualizados."
             self._log_event(novo_id_ativo, "Atualização", detalhes, conn)
 
-            return novo_id_ativo
+        # Remove arquivo temporário se ainda existir
+        import os
+        if temp_foto_path and os.path.exists(temp_foto_path):
+            try:
+                os.remove(temp_foto_path)
+            except Exception as e:
+                print(f"Erro ao remover arquivo temporario de foto: {e}")
+
+        return novo_id_ativo
 
 
 def get_engine_by_key(key):

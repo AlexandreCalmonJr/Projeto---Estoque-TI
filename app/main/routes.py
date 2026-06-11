@@ -31,6 +31,23 @@ def serve_custom_logo():
     return send_from_directory(os.path.join(current_app.root_path, 'static', 'images'), 'logo.png')
 
 
+@main_bp.route('/uploads/ativos/<path:filename>')
+@login_required
+def serve_ativo_foto(filename):
+    import os
+    from flask import send_from_directory
+    from config import basedir
+    ativos_dir = os.path.join(basedir, 'uploads', 'ativos')
+    return send_from_directory(ativos_dir, filename)
+
+
+def _allowed_image(filename):
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+
 def _allowed_file(filename):
     if not filename or '.' not in filename:
         return False
@@ -340,11 +357,34 @@ def index():
 @role_required('admin', 'tecnico')
 def form_ativo():
     if request.method == 'POST':
+        temp_foto_path = None
         try:
-            manager.registrar_novo_ativo(request.form)
+            foto_file = request.files.get('foto')
+            if foto_file and foto_file.filename:
+                if not _allowed_image(foto_file.filename):
+                    raise ValueError('Formato de imagem inválido. Use PNG, JPG, JPEG, GIF ou WEBP.')
+                
+                import uuid
+                import os
+                from config import basedir
+                ativos_dir = os.path.join(basedir, 'uploads', 'ativos')
+                os.makedirs(ativos_dir, exist_ok=True)
+                
+                ext = foto_file.filename.rsplit('.', 1)[1].lower()
+                temp_filename = f"temp_{uuid.uuid4().hex}.{ext}"
+                temp_foto_path = os.path.join(ativos_dir, temp_filename)
+                foto_file.save(temp_foto_path)
+
+            manager.registrar_novo_ativo(request.form, temp_foto_path=temp_foto_path)
             flash('Ativo cadastrado com sucesso!', 'success')
             return redirect(url_for('main.index'))
         except Exception as e:
+            import os
+            if temp_foto_path and os.path.exists(temp_foto_path):
+                try:
+                    os.remove(temp_foto_path)
+                except:
+                    pass
             flash(f'Erro ao cadastrar ativo: {e}', 'error')
 
     categorias = db_query("SELECT *, substr(nome, 1, 2) as sigla FROM categorias ORDER BY nome")
@@ -1209,11 +1249,41 @@ def gerador_termo():
 @role_required('admin', 'tecnico')
 def edit_ativo(id_ativo):
     if request.method == 'POST':
+        temp_foto_path = None
         try:
-            novo_id_ativo = manager.atualizar_ativo(id_ativo, request.form)
+            foto_file = request.files.get('foto')
+            remover_foto = request.form.get('remover_foto') == 'true'
+            
+            if foto_file and foto_file.filename:
+                if not _allowed_image(foto_file.filename):
+                    raise ValueError('Formato de imagem inválido. Use PNG, JPG, JPEG, GIF ou WEBP.')
+                
+                import uuid
+                import os
+                from config import basedir
+                ativos_dir = os.path.join(basedir, 'uploads', 'ativos')
+                os.makedirs(ativos_dir, exist_ok=True)
+                
+                ext = foto_file.filename.rsplit('.', 1)[1].lower()
+                temp_filename = f"temp_{uuid.uuid4().hex}.{ext}"
+                temp_foto_path = os.path.join(ativos_dir, temp_filename)
+                foto_file.save(temp_foto_path)
+
+            novo_id_ativo = manager.atualizar_ativo(
+                id_ativo, 
+                request.form, 
+                temp_foto_path=temp_foto_path, 
+                remover_foto=remover_foto
+            )
             flash('Ativo atualizado com sucesso!', 'success')
             return redirect(url_for('main.detalhes_ativo', id_ativo=novo_id_ativo))
         except ValueError as e:
+            import os
+            if temp_foto_path and os.path.exists(temp_foto_path):
+                try:
+                    os.remove(temp_foto_path)
+                except:
+                    pass
             flash(f'Erro ao atualizar: {e}', 'error')
             return redirect(url_for('main.edit_ativo', id_ativo=id_ativo))
 

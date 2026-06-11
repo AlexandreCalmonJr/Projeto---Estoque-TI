@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -61,6 +61,23 @@
                 <div class="mb-4">
                     <label for="data_garantia" class="block text-gray-700 text-sm font-bold mb-2">Vencimento da Garantia</label>
                     <input type="date" name="data_garantia" id="data_garantia" value="{{ ativo.data_garantia or '' }}" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div class="mb-4">
+                    <label for="foto" class="block text-gray-700 text-sm font-bold mb-2">Foto do Ativo</label>
+                    {% if ativo.foto_path %}
+                        <div class="mb-2 flex items-center gap-3 bg-gray-50 p-2.5 rounded border border-gray-200">
+                            <img src="{{ url_for('main.serve_ativo_foto', filename=ativo.foto_path) }}" class="w-16 h-16 object-cover rounded shadow" alt="Foto Atual">
+                            <div>
+                                <p class="text-xs text-gray-500">Já possui uma foto vinculada.</p>
+                                <label class="inline-flex items-center mt-1 text-xs text-red-600 font-semibold cursor-pointer">
+                                    <input type="checkbox" name="remover_foto" value="true" class="form-checkbox text-red-600 border-gray-300 rounded mr-1">
+                                    Remover foto atual
+                                </label>
+                            </div>
+                        </div>
+                    {% endif %}
+                    <input type="file" name="foto" id="foto" accept="image/*" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 bg-white">
+                    <p class="text-xs text-gray-500 mt-1">Selecione um arquivo para alterar ou adicionar foto (PNG, JPG, JPEG, GIF, WEBP. Máx: 10MB).</p>
                 </div>
             </div>
         </div>

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
-    <form method="POST" id="form-ativo">
+    <form method="POST" id="form-ativo" enctype="multipart/form-data">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Coluna 1: Informações Principais -->
@@ -69,6 +69,11 @@
                 <div class="mb-4">
                     <label for="data_garantia" class="block text-gray-700 text-sm font-bold mb-2">Vencimento da Garantia</label>
                     <input type="date" name="data_garantia" id="data_garantia" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
+                <div class="mb-4">
+                    <label for="foto" class="block text-gray-700 text-sm font-bold mb-2">Foto do Ativo</label>
+                    <input type="file" name="foto" id="foto" accept="image/*" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 bg-white">
+                    <p class="text-xs text-gray-500 mt-1">Formatos aceitos: PNG, JPG, JPEG, GIF, WEBP. Máx: 10MB.</p>
                 </div>
             </div>
         </div>
