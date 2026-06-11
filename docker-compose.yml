@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: almoxarifado_digital
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - OPEN_BROWSER=false
+      - FLASK_CONFIG=production
+    volumes:
+      # Monta os bancos de dados SQLite locais para persistência
+      - ./common.db:/app/common.db
+      - ./salvador_assets.db:/app/salvador_assets.db
+      - ./minas_assets.db:/app/minas_assets.db
+      - ./sergipe_assets.db:/app/sergipe_assets.db
+      - ./geral_assets.db:/app/geral_assets.db
+      # Monta a pasta de templates de documentos para manter alterações em tempo real
+      - ./app/document_templates:/app/app/document_templates
+      # Chave secreta persistente
+      - ./.estoqueti_secret:/app/.estoqueti_secret
+    restart: always
