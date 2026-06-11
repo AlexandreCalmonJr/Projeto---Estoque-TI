@@ -66,6 +66,8 @@ def setup_database_logic():
                     ram_gb INTEGER,
                     armazenamento_gb INTEGER,
                     sistema_operacional TEXT,
+                    data_garantia DATE,
+                    foto_path TEXT,
                     FOREIGN KEY (modelo_id) REFERENCES modelos (id),
                     FOREIGN KEY (categoria_id) REFERENCES categorias (id)
                 );

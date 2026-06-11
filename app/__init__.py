@@ -145,4 +145,27 @@ def create_app(config_name=None):
         except Exception as e:
             print(f"Erro ao configurar bancos de dados de ativos: {e}")
 
+        # Migração automática para colunas novas nos bancos de ativos
+        try:
+            import sqlite3
+            for db_key, db_info in app.config['ASSET_DATABASES'].items():
+                asset_db_path = db_info['url'].replace('sqlite:///', '')
+                conn_asset = sqlite3.connect(asset_db_path)
+                cursor_asset = conn_asset.cursor()
+                cursor_asset.execute("PRAGMA table_info(ativos)")
+                asset_cols = [row[1] for row in cursor_asset.fetchall()]
+                migrated = []
+                if 'data_garantia' not in asset_cols:
+                    cursor_asset.execute("ALTER TABLE ativos ADD COLUMN data_garantia DATE")
+                    migrated.append('data_garantia')
+                if 'foto_path' not in asset_cols:
+                    cursor_asset.execute("ALTER TABLE ativos ADD COLUMN foto_path TEXT")
+                    migrated.append('foto_path')
+                if migrated:
+                    conn_asset.commit()
+                    print(f"Migração em '{db_key}': colunas adicionadas: {', '.join(migrated)}")
+                conn_asset.close()
+        except Exception as e:
+            print(f"Erro na migração dos bancos de ativos: {e}")
+
     return app

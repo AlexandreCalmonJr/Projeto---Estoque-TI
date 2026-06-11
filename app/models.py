@@ -201,13 +201,13 @@ class AssetManager:
                         id_ativo, numero_serie, marca, modelo_id, categoria_id, status,
                         nota_fiscal, fornecedor, data_aquisicao, localizacao,
                         usuario_responsavel, destino, cpu, ram_gb, armazenamento_gb,
-                        sistema_operacional
+                        sistema_operacional, data_garantia
                     )
                     VALUES (
                         :id_ativo, :numero_serie, :marca, :modelo_id, :categoria_id,
                         'Em Estoque', :nota_fiscal, :fornecedor, :data_aquisicao,
                         :localizacao, NULL, :destino, :cpu, :ram_gb,
-                        :armazenamento_gb, :sistema_operacional
+                        :armazenamento_gb, :sistema_operacional, :data_garantia
                     )
                 """
                 params = {
@@ -225,6 +225,7 @@ class AssetManager:
                     'ram_gb': self._optional_int(form_data, 'ram_gb'),
                     'armazenamento_gb': self._optional_int(form_data, 'armazenamento_gb'),
                     'sistema_operacional': self._get_text(form_data, 'sistema_operacional') or None,
+                    'data_garantia': self._get_text(form_data, 'data_garantia') or None,
                 }
                 conn.execute(text(sql), params)
                 self._log_event(id_ativo, "Criação", "Ativo cadastrado e movido para o estoque.", conn)
@@ -352,7 +353,8 @@ class AssetManager:
                     nota_fiscal = :nota_fiscal,
                     fornecedor = :fornecedor,
                     data_aquisicao = :data_aquisicao,
-                    destino = :destino
+                    destino = :destino,
+                    data_garantia = :data_garantia
                 WHERE id = :db_id
             """
             params = {
@@ -365,6 +367,7 @@ class AssetManager:
                 'fornecedor': self._get_text(form_data, 'fornecedor') or None,
                 'data_aquisicao': self._get_text(form_data, 'data_aquisicao') or None,
                 'destino': self._get_text(form_data, 'destino') or None,
+                'data_garantia': self._get_text(form_data, 'data_garantia') or None,
                 'db_id': current['id'],
             }
             conn.execute(text(sql), params)

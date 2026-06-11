@@ -1,6 +1,6 @@
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -186,6 +186,25 @@ def index():
             almoxarifado_alerta_count = 0
             consumiveis_list = []
 
+        # Warranty alerts
+        today_str_idx = datetime.now().strftime('%Y-%m-%d')
+        in_60_str_idx = (datetime.now() + timedelta(days=60)).strftime('%Y-%m-%d')
+        try:
+            garantias_vencendo_count = db_query("""
+                SELECT COUNT(id) as count FROM ativos
+                WHERE data_garantia IS NOT NULL AND data_garantia != ''
+                AND data_garantia >= :hoje AND data_garantia <= :em60
+                AND status NOT IN ('Descartado')
+            """, {'hoje': today_str_idx, 'em60': in_60_str_idx})[0]['count']
+            garantias_vencidas_count = db_query("""
+                SELECT COUNT(id) as count FROM ativos
+                WHERE data_garantia IS NOT NULL AND data_garantia != ''
+                AND data_garantia < :hoje AND status NOT IN ('Descartado')
+            """, {'hoje': today_str_idx})[0]['count']
+        except Exception:
+            garantias_vencendo_count = 0
+            garantias_vencidas_count = 0
+
         lista_ativos_filtrados = db_query(f"""
             SELECT a.id_ativo, c.nome as categoria, m.nome as modelo, a.status, a.usuario_responsavel
             FROM ativos a
@@ -277,6 +296,8 @@ def index():
             'category_cost_data': category_cost_data,
             'brand_cost_labels': brand_cost_labels,
             'brand_cost_data': brand_cost_data,
+            'garantias_vencendo_count': garantias_vencendo_count,
+            'garantias_vencidas_count': garantias_vencidas_count,
         }
     except Exception as e:
         flash(f"Ocorreu um erro ao carregar os dados do dashboard: {e}", "error")
@@ -299,6 +320,8 @@ def index():
             'category_cost_data': [],
             'brand_cost_labels': [],
             'brand_cost_data': [],
+            'garantias_vencendo_count': 0,
+            'garantias_vencidas_count': 0,
         }
         todas_categorias, todos_modelos, filtros_selecionados = [], [], {}
 
@@ -366,6 +389,20 @@ def detalhes_ativo(id_ativo):
         {'id_ativo': id_ativo}
     )
 
+    # Build responsibility history from historico events
+    responsaveis_historico = []
+    for h in historico:
+        if h['evento'] in ('Movimentação', 'Distribuição') and h['detalhes'] and 'responsável' in h['detalhes'].lower():
+            import re as _re
+            match = _re.search(r'Novo responsável: (.+?)[\.\s]*(?:Chamado:|$)', h['detalhes'], _re.IGNORECASE)
+            chamado_match = _re.search(r'Chamado: ([\w\-/]+)', h['detalhes'], _re.IGNORECASE)
+            if match:
+                responsaveis_historico.append({
+                    'responsavel': match.group(1).strip().rstrip('.'),
+                    'data': h['timestamp'],
+                    'chamado': chamado_match.group(1) if chamado_match else None,
+                })
+
     return render_template(
         "detalhes_ativo.html",
         title=f"Detalhes: {ativo_list[0]['id_ativo']}",
@@ -374,7 +411,196 @@ def detalhes_ativo(id_ativo):
         termo=termo,
         manutencoes=manutencoes,
         document_templates=_document_templates(),
+        responsaveis_historico=responsaveis_historico,
+        now=datetime.now,
+        timedelta=timedelta,
     )
+
+
+@main_bp.route('/exportar-excel')
+@login_required
+def exportar_excel():
+    """Exports current filtered assets list as a formatted .xlsx file."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    where_sql, params, _ = get_filter_clauses_and_params()
+    ativos = db_query(f"""
+        SELECT a.id_ativo, c.nome as categoria, m.nome as modelo, a.marca,
+               a.numero_serie, a.status, a.usuario_responsavel, a.localizacao,
+               a.data_aquisicao, a.data_garantia, a.fornecedor
+        FROM ativos a
+        JOIN modelos m ON a.modelo_id = m.id
+        JOIN categorias c ON a.categoria_id = c.id
+        {where_sql}
+        ORDER BY a.id_ativo
+    """, params)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Ativos"
+
+    # Header style
+    header_fill = PatternFill("solid", fgColor="1E3A5F")
+    header_font = Font(color="FFFFFF", bold=True, size=11)
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    headers = [
+        "Patrimônio", "Categoria", "Modelo", "Marca",
+        "Nº Série", "Status", "Responsável", "Localização",
+        "Data Aquisição", "Venc. Garantia", "Fornecedor"
+    ]
+
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = thin_border
+
+    ws.row_dimensions[1].height = 22
+
+    # Data rows with zebra striping
+    alt_fill = PatternFill("solid", fgColor="EEF2FF")
+    for row_idx, ativo in enumerate(ativos, start=2):
+        row_data = [
+            ativo['id_ativo'], ativo['categoria'], ativo['modelo'], ativo['marca'],
+            ativo['numero_serie'], ativo['status'], ativo['usuario_responsavel'] or '',
+            ativo['localizacao'] or '', ativo['data_aquisicao'] or '',
+            ativo['data_garantia'] or '', ativo['fornecedor'] or ''
+        ]
+        fill = alt_fill if row_idx % 2 == 0 else None
+        for col_idx, value in enumerate(row_data, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center')
+            if fill:
+                cell.fill = fill
+
+    # Auto-fit columns
+    col_widths = [15, 15, 20, 15, 20, 15, 20, 20, 15, 15, 20]
+    for i, width in enumerate(col_widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"ativos_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@main_bp.route('/relatorio/colaborador')
+@login_required
+def relatorio_colaborador():
+    """Report of all assets assigned to a given employee."""
+    q = request.args.get('q', '').strip()
+    ativos = []
+    totais_por_categoria = []
+    if q:
+        ativos = db_query("""
+            SELECT a.id_ativo, c.nome as categoria, m.nome as modelo,
+                   a.marca, a.status, a.localizacao, a.usuario_responsavel,
+                   a.data_aquisicao, a.data_garantia
+            FROM ativos a
+            JOIN modelos m ON a.modelo_id = m.id
+            JOIN categorias c ON a.categoria_id = c.id
+            WHERE LOWER(a.usuario_responsavel) LIKE LOWER(:q)
+            ORDER BY c.nome, a.id_ativo
+        """, {'q': f'%{q}%'})
+
+        # Group by category for summary
+        cat_count = {}
+        for a in ativos:
+            cat = a['categoria']
+            cat_count[cat] = cat_count.get(cat, 0) + 1
+        totais_por_categoria = [{'categoria': k, 'total': v} for k, v in sorted(cat_count.items())]
+
+    return render_template(
+        'relatorio_colaborador.html',
+        title='Ativos por Colaborador',
+        ativos=ativos,
+        totais_por_categoria=totais_por_categoria,
+        q=q,
+        now=datetime.now,
+        timedelta=timedelta,
+    )
+
+
+@main_bp.route('/notificacoes')
+@login_required
+def notificacoes():
+    """Returns JSON with internal notifications for the bell icon."""
+    from flask import jsonify
+    alertas = []
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    in_60_days = (datetime.now() + timedelta(days=60)).strftime('%Y-%m-%d')
+    in_30_days = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+
+    try:
+        # Assets in maintenance for more than 15 days
+        manut_antigas = db_query("""
+            SELECT COUNT(*) as cnt FROM manutencoes m
+            JOIN ativos a ON m.id_ativo = a.id_ativo
+            WHERE a.status = 'Em Manutenção'
+            AND m.status = 'Em Manutenção'
+            AND julianday('now') - julianday(m.data_inicio) > 15
+        """)
+        cnt_manut = manut_antigas[0]['cnt'] if manut_antigas else 0
+        if cnt_manut > 0:
+            alertas.append({'tipo': 'warning', 'icone': '🔧',
+                            'mensagem': f'{cnt_manut} ativo(s) em manutenção há mais de 15 dias',
+                            'link': '/manutencao'})
+
+        # Warranties expiring in 30 days
+        garantias_vencendo = db_query("""
+            SELECT COUNT(*) as cnt FROM ativos
+            WHERE data_garantia IS NOT NULL
+            AND data_garantia != ''
+            AND data_garantia >= :hoje
+            AND data_garantia <= :em_30
+        """, {'hoje': today_str, 'em_30': in_30_days})
+        cnt_gar30 = garantias_vencendo[0]['cnt'] if garantias_vencendo else 0
+        if cnt_gar30 > 0:
+            alertas.append({'tipo': 'warning', 'icone': '⚠️',
+                            'mensagem': f'{cnt_gar30} garantia(s) vencem em 30 dias',
+                            'link': '/'})
+
+        # Warranties already expired
+        garantias_vencidas = db_query("""
+            SELECT COUNT(*) as cnt FROM ativos
+            WHERE data_garantia IS NOT NULL
+            AND data_garantia != ''
+            AND data_garantia < :hoje
+            AND status NOT IN ('Descartado')
+        """, {'hoje': today_str})
+        cnt_venc = garantias_vencidas[0]['cnt'] if garantias_vencidas else 0
+        if cnt_venc > 0:
+            alertas.append({'tipo': 'danger', 'icone': '🔴',
+                            'mensagem': f'{cnt_venc} ativo(s) com garantia vencida',
+                            'link': '/'})
+
+        # Consumables below minimum
+        consumiveis_criticos = db_query("""
+            SELECT COUNT(*) as cnt FROM consumiveis WHERE quantidade <= estoque_minimo
+        """)
+        cnt_cons = consumiveis_criticos[0]['cnt'] if consumiveis_criticos else 0
+        if cnt_cons > 0:
+            alertas.append({'tipo': 'danger', 'icone': '📦',
+                            'mensagem': f'{cnt_cons} consumivel(is) abaixo do estoque mínimo',
+                            'link': '/consumiveis'})
+    except Exception as e:
+        alertas.append({'tipo': 'info', 'icone': 'ℹ️', 'mensagem': f'Erro ao carregar alertas: {e}', 'link': '#'})
+
+    return jsonify({'alertas': alertas, 'total': len(alertas)})
 
 
 @main_bp.route('/manutencao')

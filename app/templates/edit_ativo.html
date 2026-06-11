@@ -58,6 +58,10 @@
                     <label for="data_aquisicao" class="block text-gray-700 text-sm font-bold mb-2">Data de Aquisição</label>
                     <input type="date" name="data_aquisicao" id="data_aquisicao" value="{{ ativo.data_aquisicao or '' }}" class="shadow appearance-none border rounded w-full py-2 px-3">
                 </div>
+                <div class="mb-4">
+                    <label for="data_garantia" class="block text-gray-700 text-sm font-bold mb-2">Vencimento da Garantia</label>
+                    <input type="date" name="data_garantia" id="data_garantia" value="{{ ativo.data_garantia or '' }}" class="shadow appearance-none border rounded w-full py-2 px-3">
+                </div>
             </div>
         </div>
 

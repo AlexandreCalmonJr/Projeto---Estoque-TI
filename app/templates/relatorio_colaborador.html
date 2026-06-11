@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-1">&#128100; Ativos por Colaborador</h2>
+        <p class="text-gray-500 text-sm">Pesquise pelo nome do colaborador para listar todos os ativos atribuidos a ele.</p>
+        <form method="GET" action="{{ url_for('main.relatorio_colaborador') }}" class="mt-4 flex gap-3">
+            <input type="text" name="q" id="q-colaborador" value="{{ q }}" placeholder="Digite o nome do colaborador..."
+                   class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg text-sm transition-colors">
+                Buscar
+            </button>
+            {% if q and ativos %}
+            <button type="button" onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors no-print">
+                Imprimir
+            </button>
+            <a href="{{ url_for('main.exportar_excel', q=q) }}" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors no-print">
+                Excel
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if q %}
+        {% if ativos %}
+        <!-- Summary cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 no-print">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                <p class="text-3xl font-bold text-blue-700">{{ ativos|length }}</p>
+                <p class="text-sm text-blue-600 mt-1">Total de Ativos</p>
+            </div>
+            {% for t in totais_por_categoria %}
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+                <p class="text-2xl font-bold text-gray-700">{{ t.total }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ t.categoria }}</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Assets table -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b flex items-center justify-between">
+                <h3 class="font-bold text-gray-800">
+                    Resultados para: <span class="text-blue-600">"{{ q }}"</span>
+                </h3>
+                <span class="text-sm text-gray-500">{{ ativos|length }} ativo(s) encontrado(s)</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-800 text-white text-xs uppercase">
+                        <tr>
+                            <th class="px-4 py-3">Patrimonio</th>
+                            <th class="px-4 py-3">Categoria</th>
+                            <th class="px-4 py-3">Modelo</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Localizacao</th>
+                            <th class="px-4 py-3">Garantia</th>
+                            <th class="px-4 py-3 no-print">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in ativos %}
+                        <tr class="border-b hover:bg-blue-50 transition-colors {% if loop.index % 2 == 0 %}bg-gray-50{% endif %}">
+                            <td class="px-4 py-3 font-bold text-blue-700">{{ a.id_ativo }}</td>
+                            <td class="px-4 py-3 text-gray-700">{{ a.categoria }}</td>
+                            <td class="px-4 py-3 text-gray-700">{{ a.modelo }}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+                                    {% if a.status == 'Em Uso' %}bg-green-100 text-green-800
+                                    {% elif a.status == 'Em Estoque' %}bg-blue-100 text-blue-800
+                                    {% elif a.status == 'Em Manutencao' %}bg-orange-100 text-orange-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ a.status }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-600">{{ a.localizacao or '—' }}</td>
+                            <td class="px-4 py-3">
+                                {% if a.data_garantia %}
+                                    {% if a.data_garantia < now().strftime('%Y-%m-%d') %}
+                                        <span class="text-xs font-semibold text-red-700">Vencida</span>
+                                    {% else %}
+                                        <span class="text-xs text-gray-600">{{ a.data_garantia }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-gray-400 text-xs">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 no-print">
+                                <a href="{{ url_for('main.detalhes_ativo', id_ativo=a.id_ativo) }}"
+                                   class="text-blue-600 hover:underline text-xs font-semibold">Ver Detalhes</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-8 text-center">
+            <p class="text-4xl mb-3">&#128269;</p>
+            <p class="font-semibold text-yellow-800">Nenhum ativo encontrado para <strong>"{{ q }}"</strong></p>
+            <p class="text-sm text-yellow-600 mt-1">Verifique o nome digitado e tente novamente.</p>
+        </div>
+        {% endif %}
+    {% else %}
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-10 text-center text-gray-500">
+        <p class="text-5xl mb-4">&#128100;</p>
+        <p class="font-semibold text-lg">Digite o nome de um colaborador para ver os ativos.</p>
+        <p class="text-sm mt-1">Exemplo: "Joao Silva" ou apenas "Joao".</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.getElementById('q-colaborador').focus();
+</script>
+{% endblock %}
