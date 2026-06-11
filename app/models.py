@@ -18,12 +18,41 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(256))
     is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(32), default='tecnico')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+
+class DocumentTemplate(db.Model):
+    __bind_key__ = None
+    __tablename__ = 'document_templates'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    filename = db.Column(db.String(128), unique=True, nullable=False)
+    display_name = db.Column(db.String(128), nullable=False)
+
+
+def role_required(*allowed_roles):
+    from functools import wraps
+    from flask import redirect, url_for, flash
+    from flask_login import current_user
+    
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for('main.login'))
+            user_role = getattr(current_user, 'role', 'visualizador')
+            if user_role not in allowed_roles:
+                flash('Acesso negado. Você não tem permissão para esta ação.', 'error')
+                return redirect(url_for('main.index'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 def get_asset_db_engine():

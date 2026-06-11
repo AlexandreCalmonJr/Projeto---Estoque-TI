@@ -9,7 +9,9 @@
     <p class="font-bold">Ação Necessária</p>
     <p>
         Você tem {{ data.ativos_provisorios_count }} ativo(s) com número de série provisório. 
+        {% if current_user.role != 'visualizador' %}
         <a href="{{ url_for('main.bulk_edit_ativos') }}" class="font-bold underline hover:text-yellow-800">Clique aqui para atualizá-los.</a>
+        {% endif %}
     </p>
 </div>
 {% endif %}

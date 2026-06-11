@@ -1,0 +1,66 @@
+{% extends 'admin/base_admin.html' %}
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Form de Upload de Novo Modelo -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-lg font-bold mb-4 text-gray-800">Carregar Novo Modelo</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.manage_templates') }}" class="space-y-4">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            
+            <div>
+                <label for="display_name" class="block text-sm font-semibold text-gray-700 mb-1">Nome de Exibição</label>
+                <input type="text" name="display_name" id="display_name" placeholder="Ex: Termo de Entrega de Notebook" 
+                       class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            </div>
+            
+            <div>
+                <label for="file" class="block text-sm font-semibold text-gray-700 mb-1">Arquivo Word (.docx)</label>
+                <input type="file" name="file" id="file" accept=".docx" 
+                       class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                <p class="text-xs text-gray-500 mt-1">O arquivo deve estar no formato .docx e conter as tags desejadas como `{{ '{{patrimonio}}' }}`, `{{ '{{solicitante}}' }}`, `{{ '{{usuario}}' }}`, etc.</p>
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                Carregar Modelo
+            </button>
+        </form>
+    </div>
+
+    <!-- Lista de Modelos Existentes -->
+    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-lg font-bold mb-4 text-gray-800">Modelos Cadastrados</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-100 border-b">
+                    <tr>
+                        <th class="p-3 font-bold text-gray-700">Nome de Exibição</th>
+                        <th class="p-3 font-bold text-gray-700">Nome do Arquivo Físico</th>
+                        <th class="p-3 font-bold text-gray-700 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tpl in templates %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 text-gray-900 font-medium">{{ tpl.display_name }}</td>
+                        <td class="p-3 text-gray-500 font-mono text-sm">{{ tpl.filename }}</td>
+                        <td class="p-3 text-center">
+                            <form action="{{ url_for('admin.delete_template', template_id=tpl.id) }}" method="POST" 
+                                  onsubmit="return confirm('Tem certeza que deseja remover este modelo? Os termos gerados com base nele ainda constarão no histórico, mas novos termos não poderão utilizá-lo.');">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-1 px-3 rounded text-sm transition-colors">
+                                    Excluir
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="p-8 text-center text-gray-500">Nenhum modelo customizado cadastrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

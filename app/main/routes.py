@@ -10,7 +10,7 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.utils import secure_filename
 
-from app.models import AssetManager, User, db_execute, db_query
+from app.models import AssetManager, User, db_execute, db_query, role_required
 
 from . import main_bp
 
@@ -45,13 +45,20 @@ def _normalize_status(status):
 
 
 def _document_templates():
-    return current_app.config['DOCUMENT_TEMPLATES']
+    from app.models import DocumentTemplate
+    try:
+        tpls = DocumentTemplate.query.all()
+        return {t.filename: t.display_name for t in tpls}
+    except Exception as e:
+        print(f"Erro ao obter templates: {e}")
+        return current_app.config['DOCUMENT_TEMPLATES']
 
 
 def _validate_template_name(template_name):
     if template_name not in _document_templates():
         abort(404)
-    template_path = Path(current_app.root_path) / 'document_templates' / template_name
+    from config import basedir
+    template_path = Path(basedir) / 'document_templates' / template_name
     templates_dir = template_path.parent.resolve()
     resolved_template = template_path.resolve()
     if templates_dir not in resolved_template.parents or not resolved_template.is_file():
@@ -307,6 +314,7 @@ def index():
 
 @main_bp.route('/ativo/novo', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def form_ativo():
     if request.method == 'POST':
         try:
@@ -451,6 +459,7 @@ def manutencao():
 
 @main_bp.route('/ativo/<id_ativo>/concluir_manutencao', methods=['POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def concluir_manutencao(id_ativo):
     try:
         custo_raw = request.form.get('custo', '0').strip().replace(',', '.')
@@ -658,6 +667,7 @@ Setor de TI / {company_name}
 
 @main_bp.route('/ativo/<id_ativo>/distribuir', methods=['POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def distribuir_ativo(id_ativo):
     import secrets
     form_data = request.form
@@ -768,6 +778,7 @@ def assinar_termo(token):
 
 @main_bp.route('/ativo/<id_ativo>/movimentar', methods=['POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def movimentar_ativo(id_ativo):
     novo_status = _normalize_status(request.form.get('novo_status', '').strip())
     if novo_status not in current_app.config['MOVEMENT_STATUSES']:
@@ -802,6 +813,7 @@ def movimentar_ativo(id_ativo):
 
 @main_bp.route('/ativo/<id_ativo>/baixar', methods=['POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def baixar_ativo(id_ativo):
     chamado = request.form.get('numero_chamado', '').strip()
     manager.baixar(id_ativo, chamado)
@@ -811,6 +823,7 @@ def baixar_ativo(id_ativo):
 
 @main_bp.route('/gerenciar', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def gerenciar_tipos():
     if request.method == 'POST':
         form_type = request.form.get('form_type')
@@ -844,6 +857,7 @@ def gerenciar_tipos():
 
 @main_bp.route('/importar', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def importar_ativos():
     if request.method == 'POST':
         file = request.files.get('file')
@@ -959,12 +973,14 @@ def importar_ativos():
 
 @main_bp.route('/gerar-termo')
 @login_required
+@role_required('admin', 'tecnico')
 def gerador_termo():
     return render_template('gerador_termo.html', title="Gerador de Termo")
 
 
 @main_bp.route('/ativo/<id_ativo>/edit', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def edit_ativo(id_ativo):
     if request.method == 'POST':
         try:
@@ -993,6 +1009,7 @@ def edit_ativo(id_ativo):
 
 @main_bp.route('/bulk-edit', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'tecnico')
 def bulk_edit_ativos():
     if request.method == 'POST':
         try:
@@ -1497,3 +1514,59 @@ def almoxarifado_item_excluir(item_id):
         flash(f"Erro ao excluir item do almoxarifado: {e}", "error")
         
     return redirect(url_for('main.almoxarifado'))
+
+
+@main_bp.route('/ativo/etiquetas-lote', methods=['GET', 'POST'])
+@login_required
+def etiquetas_lote():
+    if request.method == 'POST':
+        # Recebe os IDs dos ativos selecionados (id_ativo)
+        selected_ids = request.form.getlist('ativos_selecionados')
+        if not selected_ids:
+            flash('Por favor, selecione pelo menos um ativo para gerar etiquetas.', 'error')
+            return redirect(url_for('main.etiquetas_lote'))
+            
+        # Busca detalhes dos ativos selecionados no banco
+        placeholders = ', '.join([f":id_{i}" for i in range(len(selected_ids))])
+        params = {f"id_{i}": val for i, val in enumerate(selected_ids)}
+        
+        query = f"""
+            SELECT a.id_ativo, a.numero_serie, a.marca, m.nome as modelo, c.nome as categoria
+            FROM ativos a
+            JOIN modelos m ON a.modelo_id = m.id
+            JOIN categorias c ON a.categoria_id = c.id
+            WHERE a.id_ativo IN ({placeholders})
+            ORDER BY a.id_ativo DESC
+        """
+        ativos_selecionados = db_query(query, params)
+        
+        return render_template(
+            'etiquetas_impressao.html',
+            title="Impressão de Etiquetas em Lote",
+            ativos=ativos_selecionados
+        )
+        
+    # GET request: exibe listagem com filtros
+    where_sql, params, filtros_selecionados = get_filter_clauses_and_params()
+    todas_categorias = db_query("SELECT id, nome FROM categorias ORDER BY nome")
+    todos_modelos = db_query("SELECT id, nome, categoria_id FROM modelos ORDER BY nome")
+    
+    # Lista ativos
+    ativos = db_query(f"""
+        SELECT a.id_ativo, c.nome as categoria, m.nome as modelo, a.numero_serie, a.status, a.usuario_responsavel
+        FROM ativos a
+        JOIN modelos m ON a.modelo_id = m.id
+        JOIN categorias c ON a.categoria_id = c.id
+        {where_sql}
+        ORDER BY a.id_ativo DESC
+    """, params)
+    
+    return render_template(
+        'etiquetas_lote.html',
+        title="Gerador de Etiquetas em Lote",
+        ativos=ativos,
+        todas_categorias=todas_categorias,
+        todos_modelos=todos_modelos,
+        filtros_selecionados=filtros_selecionados
+    )
+

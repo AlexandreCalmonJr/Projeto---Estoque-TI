@@ -78,10 +78,61 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
 
+        # Migração automática para a coluna 'role'
+        try:
+            import sqlite3
+            common_db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+            conn = sqlite3.connect(common_db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if 'role' not in columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'tecnico'")
+                cursor.execute("UPDATE users SET role = 'admin' WHERE is_admin = 1")
+                cursor.execute("UPDATE users SET role = 'tecnico' WHERE is_admin = 0 OR is_admin IS NULL")
+                conn.commit()
+                print("Migração da coluna 'role' efetuada com sucesso.")
+            conn.close()
+        except Exception as e:
+            print(f"Erro na migração da coluna role: {e}")
+
+        # Inicialização do diretório e tabela de templates dinâmicos
+        try:
+            import shutil
+            from app.models import DocumentTemplate
+            # Garante que o diretório persistent existe
+            from config import basedir
+            persistent_dir = os.path.join(basedir, 'document_templates')
+            os.makedirs(persistent_dir, exist_ok=True)
+            
+            # Se estiver vazio, copia os modelos padrão
+            if not os.listdir(persistent_dir):
+                bundle_dir = os.path.join(app.root_path, 'document_templates')
+                if os.path.exists(bundle_dir):
+                    for file in os.listdir(bundle_dir):
+                        if file.endswith('.docx'):
+                            shutil.copy(os.path.join(bundle_dir, file), os.path.join(persistent_dir, file))
+            
+            # Garante que os registros existem no banco
+            if DocumentTemplate.query.count() == 0:
+                defaults = {
+                    'Termo de Entrega de Ativos - modelo.docx': 'Termo de Entrega',
+                    'Termo de Responsabilidade de Ativos - modelo.docx': 'Termo de Responsabilidade',
+                    'Termo de Comodato - Notebook - modelo.docx': 'Termo de Comodato (Notebook)',
+                }
+                for filename, display_name in defaults.items():
+                    if os.path.exists(os.path.join(persistent_dir, filename)):
+                        tpl = DocumentTemplate(filename=filename, display_name=display_name)
+                        db.session.add(tpl)
+                db.session.commit()
+                print("Registros padrão de templates inseridos com sucesso.")
+        except Exception as e:
+            print(f"Erro ao inicializar diretório de templates dinâmicos: {e}")
+
         from app.models import User
         bootstrap_password = app.config.get('BOOTSTRAP_ADMIN_PASSWORD')
         if bootstrap_password and not User.query.filter_by(username='admin').first():
-            default_admin = User(username='admin', is_admin=True)
+            default_admin = User(username='admin', is_admin=True, role='admin')
             default_admin.set_password(bootstrap_password)
             db.session.add(default_admin)
             db.session.commit()

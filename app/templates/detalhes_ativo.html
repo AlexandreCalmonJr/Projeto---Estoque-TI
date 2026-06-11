@@ -220,24 +220,27 @@
         <div class="bg-white p-6 rounded-xl shadow-lg no-print">
             <h3 class="text-xl font-bold text-gray-800 mb-4">Ações Rápidas</h3>
             
+            {% if current_user.role != 'visualizador' %}
             <a href="{{ url_for('main.edit_ativo', id_ativo=ativo.id_ativo) }}" class="block w-full text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 mb-6 font-semibold">
                 Editar Informações do Ativo
             </a>
+            {% endif %}
 
             {% if get_setting('only_digital_signature') != 'true' %}
             <div class="mb-6 border-b pb-6">
                 <h4 class="font-semibold mb-2">Gerar Documento</h4>
                 <div class="flex gap-2">
                     <select id="doc-selector" class="w-full p-2 border rounded">
-                        <option value="Termo de Entrega de Ativos - modelo.docx">Termo de Entrega</option>
-                        <option value="Termo de Responsabilidade de Ativos - modelo.docx">Termo de Responsabilidade</option>
-                        <option value="Termo de Comodato - Notebook - modelo.docx">Termo de Comodato (Notebook)</option>
+                        {% for filename, display_name in document_templates.items() %}
+                        <option value="{{ filename }}">{{ display_name }}</option>
+                        {% endfor %}
                     </select>
                     <button onclick="gerarDocumento()" class="bg-green-600 text-white px-4 rounded hover:bg-green-700">Gerar</button>
                 </div>
             </div>
             {% endif %}
 
+            {% if current_user.role != 'visualizador' %}
             <form action="{{ url_for('main.distribuir_ativo', id_ativo=ativo.id_ativo) }}" method="POST" class="mb-6 border-b pb-6">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <h4 class="font-semibold mb-2">Distribuir para Usuário</h4>
@@ -261,9 +264,9 @@
                 <div class="mb-4">
                     <label for="template_name" class="block text-gray-700 text-sm font-bold mb-2">Gerar Documento</label>
                     <select name="template_name" id="template_name" class="w-full p-2 border rounded">
-                        <option value="Termo de Entrega de Ativos - modelo.docx">Termo de Entrega</option>
-                        <option value="Termo de Responsabilidade de Ativos - modelo.docx">Termo de Responsabilidade</option>
-                        <option value="Termo de Comodato - Notebook - modelo.docx">Termo de Comodato (Notebook)</option>
+                        {% for filename, display_name in document_templates.items() %}
+                        <option value="{{ filename }}">{{ display_name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 {% endif %}
@@ -299,6 +302,10 @@
                 <input type="text" name="numero_chamado" placeholder="Nº do Chamado de Baixa" class="w-full p-2 border rounded mb-2" required>
                 <button type="submit" class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">Dar Baixa do Ativo</button>
             </form>
+            {% else %}
+            <p class="text-sm text-gray-500 italic">Você está conectado com perfil de visualizador. Ações de edição ou movimentação não estão disponíveis.</p>
+            {% endif %}
+        </div>
         </div>
     </div>
 </div>

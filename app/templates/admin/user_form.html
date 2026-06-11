@@ -17,10 +17,12 @@
             <input type="password" name="password" id="password" class="w-full border p-2 rounded" {% if not user %}required{% endif %}>
         </div>
         <div class="mb-4">
-            <label class="flex items-center">
-                <input type="checkbox" name="is_admin" class="mr-2" {% if user and user.is_admin %}checked{% endif %}>
-                É Administrador? (Gerente, Coordenador, Admin)
-            </label>
+            <label for="role" class="block text-gray-700 font-bold mb-2">Papel / Perfil de Acesso</label>
+            <select name="role" id="role" class="w-full border p-2 rounded bg-white">
+                <option value="visualizador" {% if user and user.role == 'visualizador' %}selected{% endif %}>Visualizador (Apenas visualiza dados, sem alterações)</option>
+                <option value="tecnico" {% if not user or user.role == 'tecnico' %}selected{% endif %}>Técnico (Gerencia ativos, manutenções, movimentações)</option>
+                <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Administrador (Acesso total + Painel Administrativo)</option>
+            </select>
         </div>
         <div class="flex justify-between items-center mt-6">
             <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Salvar</button>

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h3 class="text-xl font-bold text-gray-800">Selecione os Ativos para Impressão</h3>
+            <p class="text-sm text-gray-500 mt-1">Utilize a busca ou os filtros para refinar a lista, selecione os ativos desejados e clique em "Gerar Etiquetas".</p>
+        </div>
+    </div>
+    
+    {% include '_filtros.html' %}
+    
+    <form method="POST" action="{{ url_for('main.etiquetas_lote') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="select-all" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                <label for="select-all" class="text-sm font-semibold text-gray-700 cursor-pointer">Selecionar Todos Desta Página</label>
+            </div>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Gerar Etiquetas Selecionadas
+            </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-100 border-b">
+                    <tr>
+                        <th class="p-4 w-12 text-center"></th>
+                        <th class="p-4 font-bold text-gray-600">Patrimônio</th>
+                        <th class="p-4 font-bold text-gray-600">Categoria</th>
+                        <th class="p-4 font-bold text-gray-600">Modelo</th>
+                        <th class="p-4 font-bold text-gray-600">Nº de Série</th>
+                        <th class="p-4 font-bold text-gray-600">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ativo in ativos %}
+                    <tr class="border-b hover:bg-gray-50 transition-colors duration-75">
+                        <td class="p-4 text-center">
+                            <input type="checkbox" name="ativos_selecionados" value="{{ ativo.id_ativo }}" class="ativo-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        </td>
+                        <td class="p-4 text-gray-900 font-semibold">{{ ativo.id_ativo }}</td>
+                        <td class="p-4 text-gray-700">{{ ativo.categoria }}</td>
+                        <td class="p-4 text-gray-700">{{ ativo.modelo }}</td>
+                        <td class="p-4 text-gray-600 font-mono text-sm">{{ ativo.numero_serie }}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-0.5 text-xs font-semibold leading-tight rounded-full 
+                                {% if ativo.status == 'Em Estoque' %} bg-green-100 text-green-700 
+                                {% elif ativo.status == 'Em Uso' %} bg-yellow-100 text-yellow-700
+                                {% elif ativo.status == 'Em Manutenção' %} bg-red-100 text-red-700
+                                {% else %} bg-gray-100 text-gray-700 {% endif %}">
+                                {{ ativo.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-gray-500">Nenhum ativo encontrado para os filtros selecionados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.ativo-checkbox');
+    
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

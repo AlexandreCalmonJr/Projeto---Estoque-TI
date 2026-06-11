@@ -26,12 +26,15 @@
                 <div>
                     <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-1.5">Patrimônio & Estoque</p>
                     <div class="space-y-1">
+                        {% if current_user.role != 'visualizador' %}
                         <a href="{{ url_for('main.form_ativo') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Cadastrar Ativo</a>
                         <a href="{{ url_for('main.manutencao') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Manutenção</a>
                         {% if get_setting('only_digital_signature') != 'true' %}
                         <a href="{{ url_for('main.gerador_termo') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Gerar Termo Avulso</a>
                         {% endif %}
                         <a href="{{ url_for('main.bulk_edit_ativos') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Editar em Lote</a>
+                        {% endif %}
+                        <a href="{{ url_for('main.etiquetas_lote') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Etiquetas em Lote</a>
                     </div>
                 </div>
 
@@ -39,8 +42,10 @@
                     <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-1.5">Administração & Dados</p>
                     <div class="space-y-1">
                         <a href="{{ url_for('main.relatorios') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Relatórios</a>
+                        {% if current_user.role != 'visualizador' %}
                         <a href="{{ url_for('main.gerenciar_tipos') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Gerenciar Tipos</a>
                         <a href="{{ url_for('main.importar_ativos') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-md hover:bg-blue-500 hover:text-white transition-colors">Importar Dados</a>
+                        {% endif %}
                     </div>
                 </div>
             </nav>

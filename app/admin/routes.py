@@ -80,7 +80,7 @@ def create_user():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        is_admin = 'is_admin' in request.form
+        role = request.form.get('role', 'tecnico')
 
         # Verifica se o usuário já existe
         if User.query.filter_by(username=username).first():
@@ -91,7 +91,7 @@ def create_user():
             flash('O campo senha é obrigatório para novos usuários.', 'error')
             return redirect(url_for('admin.create_user'))
 
-        new_user = User(username=username, is_admin=is_admin)
+        new_user = User(username=username, is_admin=(role == 'admin'), role=role)
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
@@ -109,12 +109,14 @@ def edit_user(user_id):
     user = User.query.get_or_404(user_id)
     if request.method == 'POST':
         user.username = request.form['username']
+        role = request.form.get('role', 'tecnico')
         
         # Evita que o admin se remova da função de admin
-        if user.id == current_user.id and 'is_admin' not in request.form:
+        if user.id == current_user.id and role != 'admin':
              flash('Você não pode remover suas próprias permissões de administrador.', 'error')
         else:
-            user.is_admin = 'is_admin' in request.form
+            user.role = role
+            user.is_admin = (role == 'admin')
         
         password = request.form.get('password')
         if password:
@@ -346,4 +348,92 @@ def download_backup():
     except Exception as e:
         flash(f'Erro ao gerar o backup: {e}', 'error')
         return redirect(url_for('admin.maintenance_page'))
+
+
+@admin_bp.route('/templates', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def manage_templates():
+    from app.models import DocumentTemplate
+    from config import basedir
+    from werkzeug.utils import secure_filename
+    
+    if request.method == 'POST':
+        display_name = request.form.get('display_name', '').strip()
+        file = request.files.get('file')
+        
+        if not display_name:
+            flash('Informe um nome de exibição para o modelo.', 'error')
+            return redirect(url_for('admin.manage_templates'))
+            
+        if not file or not file.filename:
+            flash('Selecione um arquivo .docx para carregar.', 'error')
+            return redirect(url_for('admin.manage_templates'))
+            
+        filename = secure_filename(file.filename)
+        if not filename.lower().endswith('.docx'):
+            flash('Apenas arquivos no formato .docx (Word) são permitidos.', 'error')
+            return redirect(url_for('admin.manage_templates'))
+            
+        try:
+            # Garante que a pasta existe
+            persistent_dir = os.path.join(basedir, 'document_templates')
+            os.makedirs(persistent_dir, exist_ok=True)
+            
+            # Verifica se já existe o arquivo físico ou o registro no banco
+            existing_tpl = DocumentTemplate.query.filter_by(filename=filename).first()
+            if existing_tpl:
+                flash(f'Já existe um modelo cadastrado com o arquivo "{filename}". Se deseja atualizá-lo, remova o antigo primeiro.', 'error')
+                return redirect(url_for('admin.manage_templates'))
+                
+            # Salva o arquivo no diretório persistente
+            file_path = os.path.join(persistent_dir, filename)
+            file.save(file_path)
+            
+            # Cria registro no banco de dados
+            new_template = DocumentTemplate(filename=filename, display_name=display_name)
+            db.session.add(new_template)
+            db.session.commit()
+            
+            log_audit('Cadastro de Modelo', f'Modelo Word "{display_name}" ({filename}) cadastrado.')
+            flash(f'Modelo "{display_name}" carregado com sucesso!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao salvar o modelo: {e}', 'error')
+            
+        return redirect(url_for('admin.manage_templates'))
+        
+    # GET request
+    templates = DocumentTemplate.query.order_by(DocumentTemplate.display_name).all()
+    return render_template('admin/templates.html', title="Modelos Word", templates=templates)
+
+
+@admin_bp.route('/templates/delete/<int:template_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_template(template_id):
+    from app.models import DocumentTemplate
+    from config import basedir
+    
+    template = DocumentTemplate.query.get_or_404(template_id)
+    filename = template.filename
+    display_name = template.display_name
+    
+    try:
+        # Tenta remover o arquivo físico
+        file_path = os.path.join(basedir, 'document_templates', filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+        db.session.delete(template)
+        db.session.commit()
+        
+        log_audit('Remoção de Modelo', f'Modelo Word "{display_name}" ({filename}) removido.')
+        flash(f'Modelo "{display_name}" removido com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao excluir modelo: {e}', 'error')
+        
+    return redirect(url_for('admin.manage_templates'))
+
 
